@@ -57,6 +57,7 @@ kotlin {
             implementation(libs.flatlaf)
             implementation(libs.ktor.server.core)
             implementation(libs.ktor.server.cio)
+            implementation(libs.mysql.connector.j)
         }
     }
 }

@@ -17,6 +17,7 @@ kotlinx-coroutines = "1.10.2"
 flatlaf = "3.6.2"
 ktor = "3.3.1"
 multiplatform-paths = "0.2.2"
+mysql-connector-j = "9.5.0"
 
 
 [libraries]
@@ -37,6 +38,7 @@ ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 multiplatform-paths = { module = "me.sujanpoudel.multiplatform.utils:multiplatform-paths", version.ref = "multiplatform-paths"}
+mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector-j" }
 
 
 [plugins]
