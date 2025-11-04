@@ -1,3 +1,6 @@
+all this stuff is auto generated
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
 This is a Kotlin Multiplatform project targeting Android, iOS, Desktop (JVM).
 
 * [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
