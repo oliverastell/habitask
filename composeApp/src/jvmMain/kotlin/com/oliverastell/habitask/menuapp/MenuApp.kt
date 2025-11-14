@@ -1,13 +1,6 @@
 package com.oliverastell.habitask.menuapp
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,28 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.onClick
-import androidx.compose.foundation.shape.AbsoluteCutCornerShape
-import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.foundation.text.TextAutoSizeDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.ripple
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,19 +30,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.oliverastell.habitask.DesktopDirectory
+import com.oliverastell.habitask.filemanagers.DesktopFileManager
 import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import java.io.File
+import javax.swing.JFileChooser
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MenuOption(
+fun MenuButton(
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(4.dp),
@@ -80,72 +61,125 @@ fun MenuOption(
 }
 
 @Composable
+fun DefaultMenuButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    MenuButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(8.dp, 0.dp),
+        modifier = modifier.fillMaxWidth().height(32.dp)
+    ) {
+        Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxSize()) {
+            Text(text, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
 fun MenuApp(
-    onOpenServerFolder: (path: Path) -> Unit = {},
-    onOpenServer: () -> Unit = {},
+    onOpenServer: (path: Path) -> Unit = {},
     onOpenClient: () -> Unit = {},
-    workingDirectory: DesktopDirectory,
+    desktopFileManager: DesktopFileManager,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
+        var showPopup by remember { mutableStateOf(false) }
+
+        val recentServers by remember { mutableStateOf(desktopFileManager.getRecentServers()) }
 
         Column(
             Modifier.padding(8.dp)
         ) {
-            MenuOption(
-                onClick = onOpenClient,
-                contentPadding = PaddingValues(8.dp, 0.dp),
-                modifier = Modifier.fillMaxWidth().height(32.dp)
-            ) {
-                Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxSize()) {
-                    Text("Open Client", fontSize = 14.sp)
+            if (showPopup) {
+                var name by remember { mutableStateOf("example") }
+                Text("Server folder name")
+
+                TextField(name, onValueChange = {
+                    name = it
+                })
+
+                val path = Path(desktopFileManager.paths.defaultServerDirectory, name.trim())
+                val pathMeta = SystemFileSystem.metadataOrNull(path)
+
+                val validPath = run {
+                    if (name.trim().isEmpty()) {
+                        Text("Name is empty", color = MaterialTheme.colorScheme.onError)
+                        return@run false
+                    }
+
+                    if (pathMeta != null && pathMeta.isDirectory && SystemFileSystem.list(path).isNotEmpty()) {
+                        Text("Directory is not empty", color = MaterialTheme.colorScheme.onError)
+                    }
+
+                    true
                 }
-            }
 
-            Spacer(Modifier.height(4.dp))
-
-            MenuOption(
-                onClick = onOpenServer,
-                contentPadding = PaddingValues(8.dp, 0.dp),
-                modifier = Modifier.fillMaxWidth().height(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxSize()) {
-                    Column {
-                        Text("Open Server Directory", fontSize = 14.sp)
-                        Text("Open an empty directory to create a new server", fontSize = 10.sp)
+                Row {
+                    if (validPath)
+                        DefaultMenuButton("Open", modifier = Modifier.weight(0.5f)) {
+                            SystemFileSystem.createDirectories(path)
+                            onOpenServer(path)
+                        }
+                    Spacer(Modifier.width(4.dp))
+                    DefaultMenuButton("Cancel", modifier = Modifier.weight(0.5f)) {
+                        showPopup = false
                     }
                 }
-            }
+            } else {
+                DefaultMenuButton("Open Client", onClick = onOpenClient)
 
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxWidth().height(32.dp)
-            ) {
-                HorizontalDivider(modifier = Modifier.fillMaxWidth())
-            }
+                Spacer(Modifier.height(4.dp))
 
-            Box(Modifier.fillMaxWidth()) {
-                LazyColumn {
-                    itemsIndexed(workingDirectory.getRecentServers()) { i, v ->
+                DefaultMenuButton("New Server") {
+                    showPopup = true
+                }
 
-                        MenuOption(
-                            onClick = {
-                                onOpenServerFolder(v)
-                            },
-                            contentPadding = PaddingValues(8.dp, 0.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.Folder,
-                                contentDescription = null,
-                                modifier = Modifier.padding(4.dp).fillMaxHeight()
-                            )
-                            Column {
-                                Text("Server $i", fontSize = 14.sp)
-                                Text(v.toString(), fontSize = 10.sp)
+                Spacer(Modifier.height(4.dp))
+
+                DefaultMenuButton("Open Server Directory", onClick = {
+                    val chooser = JFileChooser()
+                    chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                    chooser.currentDirectory = File(desktopFileManager.paths.defaultServerDirectory.toString())
+
+                    val dialog = chooser.showOpenDialog(null)
+                    if (dialog == JFileChooser.APPROVE_OPTION) {
+                        onOpenServer(Path(chooser.selectedFile.path))
+                    }
+                })
+
+                Spacer(Modifier.height(4.dp))
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth().height(32.dp)
+                ) {
+                    HorizontalDivider(modifier = Modifier.fillMaxWidth())
+                }
+
+                Box(Modifier.fillMaxWidth()) {
+                    LazyColumn {
+                        itemsIndexed(recentServers) { i, v ->
+                            MenuButton(
+                                onClick = {
+                                    onOpenServer(v)
+                                },
+                                contentPadding = PaddingValues(8.dp, 0.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Default.Folder,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(4.dp).fillMaxHeight()
+                                )
+                                Column {
+                                    Text("Server $i", fontSize = 14.sp)
+                                    Text(v.toString(), fontSize = 10.sp)
+                                }
                             }
                         }
                     }

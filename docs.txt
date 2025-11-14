@@ -1,0 +1,42 @@
+
+TASK:
+  A type of task, such as cleaning or washing something.
+
+ACTIVE TASK:
+  A task that is currently assigned to a group.
+
+(RE)ASSIGNMENT:
+  Every month (by default) each group is given a new set of tasks.
+
+CYCLE:
+  A task may be cycling task, that is required to be done multiple times per assignment.
+
+USER:
+  A unique human individual. A user may use multiple clients.
+
+CLIENT:
+  The frontend client application. Unique to each device.
+
+SERVER:
+  The backend application. Unique to each server folder.
+
+GROUP:
+  A collection of users. This doesn't imply multiple users, in fact, a group can have just one user.
+  Every user is in a group.
+  A user will be automatically assigned a group.
+  You can join multiple groups into one.
+
+Here's a representation of how the hierarchy is laid out.
+
+SERVER [
+  GROUP[
+    USER
+    USER
+    USER
+  ]
+  GROUP...
+]
+
+Table Structure
+
+ClientMAC  ClientIP  GroupToken

@@ -1,13 +1,11 @@
-package com.oliverastell.habitask
+package com.oliverastell.habitask.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 //import androidx.compose.material3.ColorScheme
 //import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 
 @Composable
 fun HabitaskTheme(colorScheme: ColorScheme? = null, content: @Composable () -> Unit) {

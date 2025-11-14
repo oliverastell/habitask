@@ -17,7 +17,9 @@ kotlinx-coroutines = "1.10.2"
 flatlaf = "3.6.2"
 ktor = "3.3.1"
 multiplatform-paths = "0.2.2"
-mysql-connector-j = "9.5.0"
+sqlite = "3.51.0.0"
+exposed = "0.61.0"
+h2 = "2.4.240"
 
 
 [libraries]
@@ -38,8 +40,9 @@ ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 multiplatform-paths = { module = "me.sujanpoudel.multiplatform.utils:multiplatform-paths", version.ref = "multiplatform-paths"}
-mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector-j" }
-
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
