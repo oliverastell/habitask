@@ -11,11 +11,12 @@ ACTIVE TASK:
 CYCLE:
   A task may be cycling task, that is required to be done multiple times per assignment.
 
-USER:
-  A unique human individual. A user may use multiple clients.
-
 CLIENT:
   The frontend client application. Unique to each device.
+  Data associated with the client is local.
+
+USER:
+  Data associated with the client is replicated.
 
 SERVER:
   The backend application. Unique to each server folder.

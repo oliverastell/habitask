@@ -8,13 +8,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.application
 import com.formdev.flatlaf.FlatDarkLaf
 import com.formdev.flatlaf.FlatLightLaf
-import com.oliverastell.habitask.clientapp.App
-import com.oliverastell.habitask.filemanagers.DesktopFileManager
-import com.oliverastell.habitask.menuapp.MenuApp
-import com.oliverastell.habitask.serverapp.ServerApp
-import com.oliverastell.habitask.theme.HabitaskTheme
-import com.oliverastell.habitask.windows.ClientServerWindow
-import com.oliverastell.habitask.windows.MenuWindow
+import com.oliverastell.habitask.data.ServerController
+import com.oliverastell.habitask.data.classes.ServerInfo
+import com.oliverastell.habitask.data.filemanagers.DesktopFileManager
+import com.oliverastell.habitask.data.filemanagers.ServerFileManager
+import com.oliverastell.habitask.ui.ClientApp
+import com.oliverastell.habitask.ui.menuapp.MenuApp
+import com.oliverastell.habitask.ui.serverapp.ServerApp
+import com.oliverastell.habitask.ui.theme.HabitaskTheme
+import com.oliverastell.habitask.ui.windows.ClientServerWindow
+import com.oliverastell.habitask.ui.windows.MenuWindow
 import kotlinx.io.files.Path
 import javax.swing.UIManager
 
@@ -45,15 +48,31 @@ fun main() = application {
                 )
             }
 
-            is DesktopWindow.Server -> ClientServerWindow(
-                title = "Habitask Server",
-                homeButtonPressed = { window = DesktopWindow.Menu }
-            ) { ServerApp((window as DesktopWindow.Server).path) }
+            is DesktopWindow.Server -> {
+                val workingDirectory = (window as DesktopWindow.Server).path
+                val serverController = ServerController(
+                    ServerFileManager(
+                        workingDirectory
+                    ),
+                    serverInfo = ServerInfo(name = "Job server")
+                )
+
+                val runtime = serverController.newRuntime()
+                runtime.start()
+
+                ClientServerWindow(
+                    title = "Habitask Server",
+                    homeButtonPressed = {
+                        runtime.stop()
+                        window = DesktopWindow.Menu
+                    }
+                ) { ServerApp(workingDirectory) }
+            }
 
             is DesktopWindow.Client -> ClientServerWindow(
                 title = "Habitask Client",
                 homeButtonPressed = { window = DesktopWindow.Menu }
-            ) { App() }
+            ) { ClientApp() }
         }
     }
 }

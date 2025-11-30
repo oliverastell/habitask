@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.ktor)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -42,7 +43,11 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.negotation)
+            implementation(libs.ktor.serialization.json)
+            implementation(libs.ktor.server.status.pages)
             implementation(libs.multiplatform.paths)
+            implementation(libs.kotlinx.datetime)
         }
         androidMain.dependencies {
             implementation(compose.preview)
@@ -57,6 +62,7 @@ kotlin {
             implementation(libs.flatlaf)
             implementation(libs.ktor.server.core)
             implementation(libs.ktor.server.cio)
+            implementation(libs.ktor.server.negotation)
             implementation(libs.exposed.core)
             implementation(libs.exposed.jdbc)
             implementation(libs.h2)
