@@ -1,6 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
@@ -12,6 +13,10 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-opt-in=kotlin.time.ExperimentalTime")
+    }
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -37,7 +42,6 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.material3)
             implementation(compose.components.resources)
-            implementation(compose.materialIconsExtended)
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
@@ -65,10 +69,14 @@ kotlin {
             implementation(libs.ktor.server.negotation)
             implementation(libs.exposed.core)
             implementation(libs.exposed.jdbc)
+            implementation(libs.exposed.kotlin.datetime)
             implementation(libs.h2)
+            implementation(libs.filekit.core)
+            implementation(libs.filekit.dialogs)
         }
     }
 }
+
 
 android {
     namespace = "com.oliverastell.habitask"
@@ -111,4 +119,10 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "habitask.resources"
+    generateResClass = auto
 }
