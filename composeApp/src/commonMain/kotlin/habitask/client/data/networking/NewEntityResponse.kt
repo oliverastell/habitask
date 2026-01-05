@@ -5,7 +5,7 @@ import habitask.common.data.info.EntityInfo
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class NewAccountResponse(
+data class NewEntityResponse(
     val entityInfo: EntityInfo,
     val accessInfo: AccessInfo
 )

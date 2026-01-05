@@ -2,10 +2,9 @@ package habitask.client.data
 
 import habitask.common.data.info.ServerInfo
 import habitask.client.data.filemanagers.ClientFileManager
-import habitask.common.data.info.TaskAssignmentInfo
-import habitask.client.data.networking.TaskAssignmentsResponse
-import habitask.client.data.networking.NewAccountRequest
-import habitask.client.data.networking.NewAccountResponse
+import habitask.common.data.info.AssignmentInfo
+import habitask.client.data.networking.NewEntityRequest
+import habitask.client.data.networking.NewEntityResponse
 import habitask.common.Logger
 import habitask.common.data.info.EntityInfo
 import habitask.common.data.info.TaskInfo
@@ -18,7 +17,6 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
@@ -67,24 +65,24 @@ class ClientController(
     suspend fun isServerOffline(connection: Connection) = !isServerOnline(connection)
 
     @OptIn(InternalAPI::class)
-    suspend fun newAccount(connection: Connection, newAccountRequest: NewAccountRequest): NewAccountResponse {
-        return client.post("${connection.url}/account/register") {
+    suspend fun newEntity(connection: Connection, newAccountRequest: NewEntityRequest): NewEntityResponse {
+        return client.post("${connection.url}/entity/register") {
             contentType(ContentType.Application.Json)
             setBody(newAccountRequest)
-        }.body<NewAccountResponse>()
+        }.body<NewEntityResponse>()
     }
 
     /**
      * Returns true if successful
       */
     suspend fun forgetAccount(connection: Connection): Boolean {
-        return client.delete("${connection.url}/account/forget") {
+        return client.delete("${connection.url}/entity/forget") {
             authorize(connection)
         }.status.isSuccess()
     }
 
     suspend fun getEntityInfo(connection: Connection): EntityInfo {
-        val response = client.get("${connection.url}/account/info") {
+        val response = client.get("${connection.url}/entity/self/info") {
             contentType(ContentType.Application.Json)
             authorize(connection)
         }
@@ -105,10 +103,24 @@ class ClientController(
         }.body<TaskInfo>()
     }
 
-    suspend fun getActiveTasks(connection: Connection): List<TaskAssignmentInfo> {
-        return client.get("${connection.url}/account/assigned") {
+    suspend fun getAssignments(connection: Connection): List<AssignmentInfo> {
+        return client.get("${connection.url}/entity/self/assigned") {
             contentType(ContentType.Application.Json)
             authorize(connection)
-        }.body<List<TaskAssignmentInfo>>()
+        }.body<List<AssignmentInfo>>()
+    }
+
+    suspend fun outsourceAssignment(connection: Connection, assignmentId: Int): Boolean {
+        return client.post("${connection.url}/assignment/$assignmentId/outsource") {
+            contentType(ContentType.Application.Json)
+            authorize(connection)
+        }.status.isSuccess()
+    }
+
+    suspend fun completeAssignment(connection: Connection, assignmentId: Int): Boolean {
+        return client.post("${connection.url}/assignment/$assignmentId/complete") {
+            contentType(ContentType.Application.Json)
+            authorize(connection)
+        }.status.isSuccess()
     }
 }

@@ -20,11 +20,30 @@ suspend fun RoutingContext.validateAccount(backend: ServerBackend): EntityInfo? 
 
     val accountInfo = backend.dbManager.getEntityByToken(authHeader)
     if (accountInfo == null) {
-        call.respondText("Invalid token", status = HttpStatusCode.Unauthorized)
+        call.respondText("Invalid token", status = HttpStatusCode.Forbidden)
         Logger.warning("User [${call.request.origin.remoteAddress}] tried accessing a restricted route with an invalid token")
         Logger.info("Users connecting with invalid tokens might be connected to a different server on the same IP and port, it is recommended you run your servers on different ports")
         return null
     }
 
     return accountInfo
+}
+
+suspend fun RoutingContext.entityOrSelf(id: String, backend: ServerBackend): EntityInfo? {
+    if (id.lowercase() == "self") {
+        val account = validateAccount(backend) ?: return null
+        return account
+    }
+
+    val idInt = id.toIntOrNull() ?: run {
+        call.respondText("Malformed id", status = HttpStatusCode.NotFound)
+        return null
+    }
+
+    val entity = backend.dbManager.getEntityById(idInt) ?: run {
+        call.respondText("Invalid entity", status = HttpStatusCode.NotFound)
+        return null
+    }
+
+    return entity
 }

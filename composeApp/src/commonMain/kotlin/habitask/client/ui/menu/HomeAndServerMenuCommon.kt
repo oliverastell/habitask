@@ -13,6 +13,7 @@ import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import habitask.common.ui.Section
 import kotlinx.coroutines.launch
 
 @Composable

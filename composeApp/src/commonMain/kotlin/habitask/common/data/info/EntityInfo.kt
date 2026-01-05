@@ -2,12 +2,7 @@ package habitask.common.data.info
 
 import kotlinx.serialization.Serializable
 
-@Serializable
-enum class EntityType {
-    User,
-    Group,
-    Folder
-}
+
 
 @Serializable
 data class EntityInfo(
@@ -15,4 +10,12 @@ data class EntityInfo(
     val name: String,
     val parent: Int?,
     val entityType: EntityType
-)
+) {
+    @Serializable
+    enum class EntityType {
+        User,
+        Group,
+        Folder
+    }
+
+}

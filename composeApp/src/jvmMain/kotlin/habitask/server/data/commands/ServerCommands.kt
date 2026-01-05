@@ -6,6 +6,7 @@ import habitask.server.data.commandengine.CommandContext
 fun CommandContext.serverCommands(backend: ServerBackend) {
     word("restart") {
         end {
+            output("restarting server...")
             backend.restart()
         }
     }
@@ -21,7 +22,7 @@ fun CommandContext.serverCommands(backend: ServerBackend) {
                 val newPort = newPort.toIntOrNull()
 
                 if (newPort != null && newPort in (0..65535)) end {
-                    output(backend.dbManager.setServerConfigs(configs.copy(port = newPort)))
+                    backend.dbManager.setServerConfigs(configs.copy(port = newPort))
                 }
             }
         }

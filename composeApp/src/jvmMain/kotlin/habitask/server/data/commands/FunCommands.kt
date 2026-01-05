@@ -17,7 +17,7 @@ fun CommandContext.funCommands(backend: ServerBackend) {
         greedyText { source ->
             val command = parseCommand(source)
             command.tokens.forEach {
-                Logger.feedback("Token: \"${it.string}\"")
+                output("Token: \"${it.string}\"")
             }
         }
     }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import habitask.common.ui.Section
 import habitask.resources.Res
 import habitask.resources.door
 import org.jetbrains.compose.resources.painterResource
@@ -35,7 +36,7 @@ fun ServerCard(
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier) {
+    Section(modifier) {
         Row(modifier = Modifier.padding(16.dp)) {
             Column(
                 modifier = Modifier.align(Alignment.CenterVertically).weight(1f)

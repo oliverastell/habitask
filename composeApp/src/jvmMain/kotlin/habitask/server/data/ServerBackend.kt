@@ -2,11 +2,11 @@ package habitask.server.data
 
 import habitask.server.data.filemanagers.ServerFileManager
 import habitask.server.data.routes.entity.entityInfo
-import habitask.server.data.routes.entity.registerAccount
+import habitask.server.data.routes.entity.registerEntity
 import habitask.common.Logger
 import habitask.common.data.info.EntityInfo
-import habitask.common.data.info.EntityType
-import habitask.common.data.info.TaskAssignmentInfo
+import habitask.common.data.info.EntityInfo.EntityType
+import habitask.common.data.info.AssignmentInfo
 import habitask.server.data.commandengine.Command
 import habitask.server.data.commandengine.CommandContext
 import habitask.server.data.commandengine.parseCommand
@@ -18,8 +18,11 @@ import habitask.server.data.commands.moveCommand
 import habitask.server.data.commands.serverCommands
 import habitask.server.data.commands.taskCommand
 import habitask.server.data.h2.DatabaseManager
+import habitask.server.data.routes.assignment.assignmentInfo
+import habitask.server.data.routes.assignment.completeAssignment
+import habitask.server.data.routes.assignment.outsourceAssignment
 import habitask.server.data.routes.entity.entityTasksAssigned
-import habitask.server.data.routes.entity.forgetEntity
+import habitask.server.data.routes.entity.deleteEntity
 import habitask.server.data.routes.task.taskInfo
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -33,6 +36,7 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -54,7 +58,7 @@ import kotlin.time.ExperimentalTime
 class ServerBackend(
     val fm: ServerFileManager
 ) {
-    val dbManager = DatabaseManager(fm.database)
+    val dbManager = DatabaseManager(fm)
     lateinit var server: EmbeddedServer<*, *>
     lateinit var checkCycleCoroutine: Job
 
@@ -69,10 +73,6 @@ class ServerBackend(
     )
 
     private var inputRequest: ((String) -> Unit)? = null
-
-    fun validName(name: String) {
-        name.all { it != '@' && it != '"' && it != '\'' && it != '\n' }
-    }
 
     fun requestInput(body: (String) -> Unit) {
         Logger.debug("requesting input")
@@ -99,10 +99,10 @@ class ServerBackend(
         val request = inputRequest
 
         val text = if (multilining != null) {
-            Logger.feedback(if (request == null) "> $text" else text)
+            onOutput(if (request == null) "> $text" else text)
             multilining!! + text
         } else {
-            Logger.feedback(if (request == null) "$ $text" else text)
+            onOutput(if (request == null) "$ $text" else text)
             text
         }
 
@@ -133,7 +133,8 @@ class ServerBackend(
         dbManager.setServerConfigs(ServerConfigs(
             name = fm.root.name,
             port = 8080,
-            reassignEvery = DateTimeUnit.MONTH
+            reassignEvery = DateTimeUnit.MONTH,
+            nextReassignment = Clock.System.now().plus(1, DateTimeUnit.MONTH, TimeZone.currentSystemDefault())
         ))
     }
 
@@ -155,7 +156,6 @@ class ServerBackend(
         server = embeddedServer(CIO, port = dbManager.getServerConfigs().port) {
             module()
         }.start()
-        Logger.feedback(welcomeMessage())
     }
     private fun stopServer() {
         server.stop(1000)
@@ -174,15 +174,22 @@ class ServerBackend(
     }
 
     private fun onOpening() {
-        dbManager.initializeTables()
+        fm.openDatabase()
 
+        dbManager.initializeTables()
         setupServerConfigs()
+
         startServer()
         startCheckCycle()
+
+        Logger.info("Server opened on port: ${dbManager.getServerConfigs().port}")
     }
     fun onClosing() {
+        Logger.info("Server closing on port: ${dbManager.getServerConfigs().port}")
+
         stopCheckCycle()
         stopServer()
+        fm.closeDatabase()
     }
 
     private var publicIp: String? = null
@@ -211,7 +218,7 @@ class ServerBackend(
 
     @OptIn(ExperimentalTime::class)
     fun reassignTasks() {
-        dbManager.deleteAllTaskAssignments()
+        dbManager.deleteAllAssignments()
 
         val groups = dbManager.getEntitiesWithParent(null)
         val tasks = dbManager.getTasks()
@@ -222,7 +229,7 @@ class ServerBackend(
             val groupIdx = groups.size * i / tasks.size
             val group = groups[groupIdx]
 
-            dbManager.newTaskAssignment(
+            dbManager.newAssignment(
                 task.id,
                 group.id,
                 Clock.System.now().plus(1, task.cycleEvery, TimeZone.currentSystemDefault())
@@ -230,7 +237,12 @@ class ServerBackend(
         }
     }
 
-    fun isEntityDescendantOf(entityId: Int, ancestorId: Int): Boolean {
+    fun isEntityDescendantOf(entityId: Int, ancestorId: Int?): Boolean {
+        Logger.debug("$entityId descendent of $ancestorId ???")
+
+        if (ancestorId == null)
+            return true
+
         if (entityId == ancestorId)
             return true
 
@@ -241,18 +253,30 @@ class ServerBackend(
             isEntityDescendantOf(parent, ancestorId)
     }
 
-    fun getAssignedTasksRecursive(entityId: Int): List<TaskAssignmentInfo>? {
+    fun isAssignmentAssignedToEntity(assignmentId: Int, entityId: Int): Boolean {
+        Logger.debug("get assignment $assignmentId")
+
+        val assignment = dbManager.getAssignmentById(assignmentId) ?: return false
+
+        val assignmentHolder = assignment.entityId
+
+        return isEntityDescendantOf(entityId, assignmentHolder)
+    }
+
+    fun getAssignments(entityId: Int): List<AssignmentInfo>? {
         val parentId = (dbManager.getEntityById(entityId) ?: return null).parent
 
-        return if (parentId != null) {
-            dbManager.getTaskAssignmentsByEntityId(entityId) + getAssignedTasksRecursive(parentId)!!
-        } else {
-            dbManager.getTaskAssignmentsByEntityId(entityId)
+        Logger.debug("get tasks of : $entityId ,$parentId")
+
+        if (parentId == null) {
+            return dbManager.getAssignmentsByEntityId(entityId) + dbManager.getAssignmentsByEntityId(null)
         }
+
+        return dbManager.getAssignmentsByEntityId(entityId) + getAssignments(parentId)!!
     }
 
     @OptIn(ExperimentalTime::class)
-    fun registerAccount(name: String): EntityInfo {
+    fun registerUser(name: String): EntityInfo {
         val account = dbManager.newEntity(
             name,
             null,
@@ -261,12 +285,20 @@ class ServerBackend(
         return account
     }
 
-    @OptIn(ExperimentalTime::class)
-    fun forgetAccount(accountInfo: EntityInfo) {
-        dbManager.deleteEntity(accountInfo.id)
-    }
-
     fun checkCycle() {
+        val now = Clock.System.now()
+
+        var configs = dbManager.getServerConfigs()
+
+        val nextReassignment = configs.nextReassignment
+
+        if (now > nextReassignment) {
+            reassignTasks()
+            configs = dbManager.getServerConfigs().copy(nextReassignment = now.plus(1, configs.reassignEvery, TimeZone.currentSystemDefault()))
+        }
+        
+        dbManager.setServerConfigs(configs)
+
         Logger.info("Check cycle")
     }
 
@@ -281,15 +313,21 @@ class ServerBackend(
         }
 
         routing {
-            route("/account") {
+            route("/entity") {
                 entityInfo(this@ServerBackend)
-                registerAccount(this@ServerBackend)
-                forgetEntity(this@ServerBackend)
+                registerEntity(this@ServerBackend)
+                deleteEntity(this@ServerBackend)
                 entityTasksAssigned(this@ServerBackend)
             }
 
             route("/task") {
                 taskInfo(this@ServerBackend)
+            }
+
+            route("/assignment") {
+                assignmentInfo(this@ServerBackend)
+                completeAssignment(this@ServerBackend)
+                outsourceAssignment(this@ServerBackend)
             }
 
             get("/info") {
@@ -303,7 +341,7 @@ class ServerBackend(
     }
 
     fun restart() {
-        stopServer()
-        startServer()
+        onClosing()
+        onOpening()
     }
 }

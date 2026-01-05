@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import habitask.common.Logger
 import habitask.common.util.formatTimeRelative
 import habitask.client.ui.util.UpdatingEffect
+import habitask.common.ui.Section
 import habitask.resources.Res
 import habitask.resources.check
 import habitask.resources.menu
@@ -43,6 +44,8 @@ fun TaskCard(
     name: String,
     dueTime: Instant,
     description: String,
+    onComplete: () -> Unit,
+    onOutsource: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -52,14 +55,7 @@ fun TaskCard(
         now = Clock.System.now()
     }
 
-    Card(
-        modifier,
-        colors = if (dueTime >= now) CardDefaults.cardColors() else CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
-    ) {
-
+    Section(modifier) {
         Row(modifier = Modifier.padding(16.dp)) {
             Column(
                 modifier = Modifier.align(Alignment.CenterVertically).weight(1f)
@@ -77,7 +73,7 @@ fun TaskCard(
                         }
 
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                            TextButton(onClick = { Logger.info("Task cannot be completed") }) {
+                            TextButton(onClick = onOutsource) {
                                 Text("I can't complete this task!")
                             }
                         }
@@ -90,9 +86,7 @@ fun TaskCard(
             ) {
                 // Complete Task
                 SmallFloatingActionButton(
-                    onClick = {
-
-                    }
+                    onClick = onComplete
                 ) {
                     Icon(painterResource(Res.drawable.check), "Finished")
                 }

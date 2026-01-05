@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar.Companion.shadowJar
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -73,6 +74,7 @@ kotlin {
             implementation(libs.h2)
             implementation(libs.filekit.core)
             implementation(libs.filekit.dialogs)
+
         }
     }
 }
@@ -111,7 +113,7 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "com.oliverastell.habitask.MainKt"
+        mainClass = "habitask.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

@@ -52,7 +52,7 @@ fun main() = application {
             }
 
             is DesktopWindow.Server -> ClientServerWindow(
-                "Server",
+                "Server Terminal",
                 homeButtonPressed = openLauncher,
                 initialWindowSize = DpSize(1200.dp, 800.dp)
             ) { ServerApp(currentWindow.path) }

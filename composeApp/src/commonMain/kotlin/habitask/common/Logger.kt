@@ -57,7 +57,6 @@ class LogStream {
 
 object Logger {
     val debug = LogStream()
-    val feedback = LogStream()
     val info = LogStream()
     val warning = LogStream()
     val error = LogStream()

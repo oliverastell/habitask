@@ -40,7 +40,7 @@ class ClientFileManager(
 
         val connectionsFile: ConnectionsFile = try {
             val connectionsFile = SystemFileSystem.source(paths.connections).buffered().use {
-                Json.Default.decodeFromSource<ConnectionsFile>(it)
+                Json.decodeFromSource<ConnectionsFile>(it)
             }
             cachedConnectionsFile = connectionsFile
             connectionsFile

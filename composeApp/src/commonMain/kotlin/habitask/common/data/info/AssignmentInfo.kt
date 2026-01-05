@@ -6,9 +6,9 @@ import kotlin.time.Instant
 
 @Serializable
 @OptIn(ExperimentalTime::class)
-data class TaskAssignmentInfo(
+data class AssignmentInfo(
     val id: Int,
     val taskId: Int,
-    val entityId: Int,
+    val entityId: Int?,
     val dueTime: Instant
 )

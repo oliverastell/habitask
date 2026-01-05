@@ -1,6 +1,7 @@
 package habitask.client.ui.menu
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -15,11 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import habitask.client.data.ClientController
 import habitask.client.data.Connection
 import habitask.common.Logger
 import habitask.common.data.info.ServerInfo
-import habitask.client.data.networking.NewAccountRequest
+import habitask.client.data.networking.NewEntityRequest
 import habitask.client.ui.elements.ServerCard
 import habitask.client.ui.menu.dialog.AddServerDialog
 import habitask.common.data.info.EntityInfo
@@ -38,7 +40,7 @@ fun ServerMenu(
     var update by remember { mutableIntStateOf(0) }
 
     HomeAndServerMenuCommon(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().padding(16.dp),
         rowContent = {
             var addingServer by remember { mutableStateOf(false) }
 
@@ -64,7 +66,7 @@ fun ServerMenu(
 
                             addingServer = false
 
-                            val response = clientController.newAccount(connection, NewAccountRequest(
+                            val response = clientController.newEntity(connection, NewEntityRequest(
                                 name = displayName
                             ))
 
@@ -81,12 +83,12 @@ fun ServerMenu(
                     var serverInfo by remember { mutableStateOf<ServerInfo?>(null) }
                     var accountInfo by remember { mutableStateOf<EntityInfo?>(null) }
 
-                    LaunchedEffect(Unit) {
+                    runBlocking {
                         clientController.updateConnection(connection)
                         if (clientController.isServerOffline(connection)) {
                             Logger.debug("server offline")
                             serverOnline = false
-                            return@LaunchedEffect
+                            return@runBlocking
                         }
 
                         serverInfo = clientController.getServerInfo(connection)

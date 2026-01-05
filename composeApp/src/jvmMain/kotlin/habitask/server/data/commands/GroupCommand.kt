@@ -1,7 +1,7 @@
 package habitask.server.data.commands
 
 import habitask.common.Logger
-import habitask.common.data.info.EntityType
+import habitask.common.data.info.EntityInfo.EntityType
 import habitask.server.data.ServerBackend
 import habitask.server.data.commandengine.CommandContext
 

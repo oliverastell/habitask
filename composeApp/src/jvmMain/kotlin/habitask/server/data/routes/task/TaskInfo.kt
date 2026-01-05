@@ -6,7 +6,10 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 
-fun Route.taskInfo(backend: ServerBackend) = get("/{id}") {
-    val id = call.parameters["id"]?.toInt() ?: return@get
-    call.respond(backend.dbManager.getTaskById(id))
+fun Route.taskInfo(backend: ServerBackend) = get("/{taskId}") {
+    val id = call.parameters["taskId"]?.toInt() ?: return@get
+
+    val task = backend.dbManager.getTaskById(id) ?: return@get
+
+    call.respond(task)
 }

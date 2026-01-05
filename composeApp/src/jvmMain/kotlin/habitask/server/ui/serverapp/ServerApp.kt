@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,27 +45,20 @@ fun ServerApp(workingDirectory: Path) {
     val serverFileManager by remember { mutableStateOf(ServerFileManager(workingDirectory)) }
     val bindings = remember { mutableStateListOf<LogStreamBinding>() }
 
-    val feedbackConsole = remember {
-        val list = mutableStateListOf<String>()
-
-        bindings += Logger.feedback.bindRaw { list.add(it.toString()) }
-        bindings += Logger.error.bind("ERROR") { list.add(it.toString()) }
-
-        list
-    }
-
-    val internalConsole = remember {
-        val list = mutableStateListOf<String>()
-
-        bindings += Logger.info.bind("INFO") { list.add("$it") }
-        bindings += Logger.debug.bind("DEBUG") { list.add("$it") }
-        bindings += Logger.warning.bind("WARNING") { list.add("$it") }
-        bindings += Logger.error.bind("ERROR") { list.add("$it") }
-
-        list
-    }
+    val feedbackConsole = remember { mutableStateListOf<String>() }
+    val internalConsole = remember { mutableStateListOf<String>() }
 
     val backend by remember { mutableStateOf(ServerBackend(serverFileManager)) }
+
+    LaunchedEffect(Unit) {
+        bindings += Logger.error.bind("ERROR") { feedbackConsole.add(it.toString()) }
+        bindings += Logger.info.bind("INFO") { internalConsole.add("$it") }
+        bindings += Logger.debug.bind("DEBUG") { internalConsole.add("$it") }
+        bindings += Logger.warning.bind("WARNING") { internalConsole.add("$it") }
+        bindings += Logger.error.bind("ERROR") { internalConsole.add("$it") }
+
+        feedbackConsole.add(backend.welcomeMessage())
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -90,12 +84,18 @@ fun ServerApp(workingDirectory: Path) {
                 port = configs.port.toString(),
                 modifier = Modifier.fillMaxWidth(0.2f).padding(24.dp, 24.dp, 0.dp, 24.dp)
             ) {
-                key(backend.dbManager.entityTableChanged) {
+                key(backend.dbManager.entityTableChanged, backend.dbManager.assignmentTableChanged, backend.dbManager.tasksTableTableChanged) {
                     LazyColumn {
-                        val rootEntities = backend.dbManager.getEntitiesWithParent(null)
-
-                        rootEntities.forEach { entityInfo ->
-                            entityCard(backend, entityInfo)
+                        items(backend.dbManager.getEntitiesWithParent(null)) { entityInfo ->
+                            EntityCard(backend, entityInfo)
+                        }
+                        items(backend.dbManager.getAssignmentsByEntityId(null)) { assignmentInfo ->
+                            val taskInfo = backend.dbManager.getTaskById(assignmentInfo.id) ?: return@items
+                            AssignmentCard(backend, assignmentInfo, taskInfo)
+                        }
+                        item { Spacer(Modifier.height(16.dp)) }
+                        items(backend.dbManager.getTasks()) { taskInfo ->
+                            TaskCard(backend, taskInfo)
                         }
                     }
                 }
@@ -146,7 +146,7 @@ fun ServerApp(workingDirectory: Path) {
 
                 try {
                     backend.inputToConsole(command, onOutput = {
-                        Logger.feedback(it)
+                        feedbackConsole.add(it.toString())
                     })
                 } catch (e: Exception) {
                     Logger.error(e.message)

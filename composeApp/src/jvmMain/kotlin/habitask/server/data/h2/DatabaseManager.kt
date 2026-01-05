@@ -4,21 +4,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import habitask.server.data.h2.tables.AccessTable
-import habitask.server.data.h2.tables.TaskAssignmentTable
+import habitask.server.data.h2.tables.AssignmentTable
 import habitask.server.data.h2.tables.TaskTable
 import habitask.common.data.info.AccessInfo
 import habitask.common.data.info.EntityInfo
-import habitask.common.data.info.EntityType
-import habitask.common.data.info.TaskAssignmentInfo
+import habitask.common.data.info.EntityInfo.EntityType
+import habitask.common.data.info.AssignmentInfo
 import habitask.common.util.toByteArray
 import habitask.common.data.info.TaskInfo
 import habitask.server.data.h2.tables.ServerConfigTable
 import habitask.server.data.ServerConfigs
+import habitask.server.data.filemanagers.ServerFileManager
 import habitask.server.data.h2.custom.replace
 import habitask.server.data.h2.tables.EntityTable
+import habitask.server.data.h2.tables.toAssignmentInfo
+import habitask.server.data.h2.tables.toEntityInfo
+import habitask.server.data.h2.tables.toServerConfigs
+import habitask.server.data.h2.tables.toTaskInfo
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.io.bytestring.buildByteString
-import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -37,54 +41,27 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-class DatabaseManager(val db: Database) {
+class DatabaseManager(val fileManager: ServerFileManager) {
     var entityTableChanged by mutableIntStateOf(0)
     var accessTableChanged by mutableIntStateOf(0)
-    var taskAssignmentTableChanged by mutableIntStateOf(0)
+    var assignmentTableChanged by mutableIntStateOf(0)
     var tasksTableTableChanged by mutableIntStateOf(0)
     var serverConfigTableChanged by mutableIntStateOf(0)
 
     fun initializeTables() {
-        transaction(db) {
+        trans {
             SchemaUtils.create(EntityTable)
             SchemaUtils.create(AccessTable)
-            SchemaUtils.create(TaskAssignmentTable)
+            SchemaUtils.create(AssignmentTable)
             SchemaUtils.create(TaskTable)
             SchemaUtils.create(ServerConfigTable)
         }
     }
 
-    private fun <T> trans(statement: Transaction.() -> T): T = transaction(db, statement)
+    private fun <T> trans(statement: Transaction.() -> T): T = transaction(fileManager.database!!, statement)
 
     // Converters
-    fun ResultRow.toEntityInfo() = EntityInfo(
-        id = get(EntityTable.id).value,
-        name = get(EntityTable.name),
-        parent = get(EntityTable.parent)?.value,
-        entityType = get(EntityTable.entityType)
-    )
 
-    fun ResultRow.toTaskAssignmentInfo() = TaskAssignmentInfo(
-        id = get(TaskAssignmentTable.id).value,
-        entityId = get(TaskAssignmentTable.entityId).value,
-        taskId = get(TaskAssignmentTable.taskId).value,
-        dueTime = get(TaskAssignmentTable.dueTime),
-    )
-
-    fun ResultRow.toTaskInfo() = TaskInfo(
-        id = get(TaskTable.id).value,
-        name = get(TaskTable.name),
-        description = get(TaskTable.description),
-        cycleEvery = get(TaskTable.cycleEvery),
-        dueAfter = get(TaskTable.dueAfter)
-    )
-
-    @OptIn(ExperimentalTime::class)
-    fun ResultRow.toServerConfigs() = ServerConfigs(
-        name = get(ServerConfigTable.name),
-        port = get(ServerConfigTable.port),
-        reassignEvery = get(ServerConfigTable.reassignEvery),
-    )
 
     fun getEntityById(id: Int): EntityInfo? =
         trans {
@@ -162,52 +139,36 @@ class DatabaseManager(val db: Database) {
                 .map { it.toTaskInfo() }
         }
 
-    fun getTaskAssignmentsByEntityId(entityId: Int) =
+    fun getAssignmentsByEntityId(entityId: Int?) =
         trans {
-            TaskAssignmentTable
+            AssignmentTable
                 .selectAll()
-                .where { TaskAssignmentTable.entityId eq entityId }
-                .map { it.toTaskAssignmentInfo() }
+                .where { AssignmentTable.entityId eq entityId }
+                .map { it.toAssignmentInfo() }
         }
-
-//    fun getTaskAssignmentsByGroupId(groupId: Int) =
-//        transaction(db) {
-//            TaskAssignmentTable
-//                .selectAll()
-//                .where { TaskAssignmentTable.groupId eq groupId }
-//                .toList()
-//        }.map { it.toTaskAssignmentInfo() }
 
     fun getTaskById(taskId: Int) =
         trans {
             TaskTable
                 .selectAll()
                 .where { TaskTable.id eq taskId }
-                .first()
-        }.toTaskInfo()
+                .firstOrNull()
+        }?.toTaskInfo()
 
-//    fun getAccountsByGroupId(groupId: Int): List<AccountInfo> =
-//        transaction(db) {
-//            AccountTable.selectAll().where {
-//                AccountTable.groupId eq groupId
-//            }.toList()
-//        }.map { it.toAccountInfo() }
-//
-//    @OptIn(ExperimentalTime::class)
-//    fun getActiveTasksByGroupId(groupId: Int): List<TaskAssignmentInfo> =
-//        transaction(db) {
-//            (TaskTable leftJoin TaskAssignmentTable)
-//                .selectAll()
-//                .where(TaskAssignmentTable.groupId eq groupId)
-//                .toList()
-//        }.map { it.toTaskAssignmentInfo() }
-
-    fun getAssignedTaskByEntityId(id: Int): List<TaskAssignmentInfo> =
+    fun getAssignmentById(assignmentId: Int) =
         trans {
-            (TaskTable leftJoin TaskAssignmentTable)
+            AssignmentTable
                 .selectAll()
-                .where(TaskAssignmentTable.entityId eq id)
-                .map { it.toTaskAssignmentInfo() }
+                .where { AssignmentTable.id eq assignmentId }
+                .firstOrNull()
+        }?.toAssignmentInfo()
+
+    fun getAssignmentsByEntityId(id: Int): List<AssignmentInfo> =
+        trans {
+            (TaskTable leftJoin AssignmentTable)
+                .selectAll()
+                .where(AssignmentTable.entityId eq id)
+                .map { it.toAssignmentInfo() }
         }
 
     fun getServerConfigs(): ServerConfigs =
@@ -221,15 +182,6 @@ class DatabaseManager(val db: Database) {
         } != null
 
     // Replacement
-//    fun setAccountGroup(accountInfo: AccountInfo, groupInfo: GroupInfo) {
-//        transaction(db) {
-//            AccountTable.update({ AccountTable.id eq accountInfo.id }) { statement ->
-//                statement[AccountTable.groupId] = groupInfo.id
-//            }
-//        }
-//        groupTableChanged++
-//    }
-
     fun setEntityParent(entityId: Int, parentEntityId: Int?) {
         trans {
             EntityTable.update({ EntityTable.id eq entityId }) { statement ->
@@ -240,6 +192,14 @@ class DatabaseManager(val db: Database) {
         entityTableChanged++
     }
 
+    fun setAssignmentEntity(assignmentId: Int, entityId: Int?) {
+        trans {
+            AssignmentTable.update({ AssignmentTable.id eq assignmentId }) { statement ->
+                statement[AssignmentTable.entityId] = entityId
+            }
+        }
+    }
+
     fun setServerConfigs(serverConfigs: ServerConfigs) {
         trans {
             ServerConfigTable.upsert {
@@ -247,6 +207,7 @@ class DatabaseManager(val db: Database) {
                 it[ServerConfigTable.name] = serverConfigs.name
                 it[ServerConfigTable.port] = serverConfigs.port
                 it[ServerConfigTable.reassignEvery] = serverConfigs.reassignEvery
+                it[ServerConfigTable.nextReassignment] = serverConfigs.nextReassignment
             }
         }
 
@@ -255,7 +216,7 @@ class DatabaseManager(val db: Database) {
 
     // Creation
     @OptIn(ExperimentalTime::class)
-    fun newAccountAccess(
+    fun newAccess(
         accountId: Int
     ): AccessInfo {
         val epoch = Clock.System.now().epochSeconds
@@ -290,7 +251,7 @@ class DatabaseManager(val db: Database) {
         parent: Int?,
         entityType: EntityType,
     ): EntityInfo {
-        val id = transaction(db) {
+        val id = trans {
             EntityTable.insertAndGetId {
                 it[EntityTable.name] = name
                 it[EntityTable.parent] = parent
@@ -309,22 +270,22 @@ class DatabaseManager(val db: Database) {
     }
 
     @OptIn(ExperimentalTime::class)
-    fun newTaskAssignment(
+    fun newAssignment(
         taskId: Int,
         entityId: Int,
         dueTime: Instant
-    ): TaskAssignmentInfo {
-        val id = transaction(db) {
-            TaskAssignmentTable.insertAndGetId {
-                it[TaskAssignmentTable.taskId] = taskId
-                it[TaskAssignmentTable.entityId] = entityId
-                it[TaskAssignmentTable.dueTime] = dueTime
+    ): AssignmentInfo {
+        val id = trans {
+            AssignmentTable.insertAndGetId {
+                it[AssignmentTable.taskId] = taskId
+                it[AssignmentTable.entityId] = entityId
+                it[AssignmentTable.dueTime] = dueTime
             }
         }
 
-        taskAssignmentTableChanged++
+        assignmentTableChanged++
 
-        return TaskAssignmentInfo(
+        return AssignmentInfo(
             id = id.value,
             taskId = taskId,
             entityId = entityId,
@@ -338,7 +299,7 @@ class DatabaseManager(val db: Database) {
         cycleEvery: DateTimeUnit,
         dueAfter: DateTimeUnit
     ): TaskInfo {
-         val id = transaction(db) {
+         val id = trans {
              TaskTable.insertAndGetId {
                  it[TaskTable.name] = name
                  it[TaskTable.description] = description
@@ -364,6 +325,9 @@ class DatabaseManager(val db: Database) {
             AccessTable.deleteWhere {
                 AccessTable.entityId eq id
             }
+            AssignmentTable.update({ AssignmentTable.entityId eq id }) { statement ->
+                statement[AssignmentTable.entityId] = null
+            }
             EntityTable.update({ EntityTable.parent eq id }) { statement ->
                 statement[EntityTable.parent] = null
             }
@@ -375,21 +339,21 @@ class DatabaseManager(val db: Database) {
         entityTableChanged++
     }
 
-    fun deleteAllTaskAssignments() {
+    fun deleteAllAssignments() {
         trans {
-            TaskAssignmentTable.deleteAll()
+            AssignmentTable.deleteAll()
         }
 
-        taskAssignmentTableChanged++
+        assignmentTableChanged++
     }
 
-    fun deleteTaskAssignment(id: Int) {
+    fun deleteAssignment(id: Int) {
         trans {
-            TaskAssignmentTable.deleteWhere {
-                TaskAssignmentTable.id eq id
+            AssignmentTable.deleteWhere {
+                AssignmentTable.id eq id
             }
         }
 
-        taskAssignmentTableChanged++
+        assignmentTableChanged++
     }
 }
