@@ -1,4 +1,4 @@
-package habitask.server.ui.serverapp
+package habitask.server.ui
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer

@@ -1,4 +1,4 @@
-package habitask.server.ui.serverapp
+package habitask.server.ui
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,7 +40,7 @@ fun AssignmentCard(
 
         Spacer(Modifier.width(8.dp))
         Text(
-            "(@${assignmentInfo.id})",
+            "(#${assignmentInfo.id})",
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primaryContainer
         )

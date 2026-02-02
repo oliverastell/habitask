@@ -1,4 +1,4 @@
-package habitask.server.ui.serverapp
+package habitask.server.ui
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -90,10 +90,13 @@ fun ServerApp(workingDirectory: Path) {
                             EntityCard(backend, entityInfo)
                         }
                         items(backend.dbManager.getAssignmentsByEntityId(null)) { assignmentInfo ->
-                            val taskInfo = backend.dbManager.getTaskById(assignmentInfo.id) ?: return@items
+                            val taskInfo = backend.dbManager.getTaskById(assignmentInfo.taskId) ?: return@items
                             AssignmentCard(backend, assignmentInfo, taskInfo)
                         }
                         item { Spacer(Modifier.height(16.dp)) }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    LazyColumn {
                         items(backend.dbManager.getTasks()) { taskInfo ->
                             TaskCard(backend, taskInfo)
                         }

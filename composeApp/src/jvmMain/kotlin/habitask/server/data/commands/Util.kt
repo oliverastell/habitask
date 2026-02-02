@@ -64,7 +64,7 @@ fun CommandContext.selectEntities(
     word { word ->
         val word = if (word == "*") "%" else word
 
-        val accounts = backend.dbManager.getEntitiesByName(word, limit = limit+1)
+        val accounts = backend.dbManager.getEntitiesByName(word)
         require(accounts.isNotEmpty()) { "No entity found matching predicate" }
         require(accounts.size <= limit) { "Too many entities matching this predicate (limit=1)" }
         body(accounts)

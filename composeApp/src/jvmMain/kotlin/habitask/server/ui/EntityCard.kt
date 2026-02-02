@@ -1,4 +1,4 @@
-package habitask.server.ui.serverapp
+package habitask.server.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -51,7 +51,7 @@ fun EntityCard(
 
     val expandable = children.isNotEmpty() || taskAssignments.isNotEmpty()
 
-    var open by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(children.size+taskAssignments.size == 1) }
 
 
     ContextMenuArea(

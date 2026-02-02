@@ -8,26 +8,46 @@ import org.jetbrains.exposed.sql.LowerCase
 import org.jetbrains.exposed.sql.QueryBuilder
 import org.jetbrains.exposed.sql.TextColumnType
 import org.jetbrains.exposed.sql.append
+import org.jetbrains.exposed.sql.stringLiteral
 import kotlin.math.exp
 
-class Replaced<T : String?>(
+class Replaced(
     /** Returns the expression to convert. */
-    val expr: Expression<T>,
-    val old: Any,
-    val new: Any
+    val expr: Expression<String>,
+    val old: String,
+    val new: String
 ) : Function<String>(TextColumnType()) {
     override fun toQueryBuilder(queryBuilder: QueryBuilder): Unit = queryBuilder {
         append("REPLACE(")
         append(expr)
         append(",")
-        append(old)
+        append(stringLiteral(old))
         append(",")
-        append(new)
+        append(stringLiteral(new))
         append(")")
     }
 }
 
-fun <T : String?> Expression<T>.replace(old: Any, new: Any): Replaced<T> = Replaced(this, old, new)
+class RegexReplaced(
+    val expr: Expression<String>,
+    val pattern: Regex,
+    val new: String
+) : Function<String>(TextColumnType()) {
+    override fun toQueryBuilder(queryBuilder: QueryBuilder): Unit = queryBuilder {
+        append("REGEXP_REPLACE(")
+        append(expr)
+        append(",")
+        append(stringLiteral(pattern.pattern))
+        append(",")
+        append(stringLiteral(new))
+        append(")")
+    }
+}
+
+fun Expression<String>.replace(old: String, new: String): Replaced = Replaced(this, old, new)
+
+fun Expression<String>.replace(old: Regex, new: String): RegexReplaced = RegexReplaced(this, old, new)
+
 
 
 

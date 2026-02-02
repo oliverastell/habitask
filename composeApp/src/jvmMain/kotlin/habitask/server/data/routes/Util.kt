@@ -10,7 +10,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.RoutingContext
 
 suspend fun RoutingContext.validateAccount(backend: ServerBackend): EntityInfo? {
-    val authHeader = call.request.headers[HttpHeaders.Authorization]
+    val authHeader = call.request.headers[HttpHeaders.AuthenticationInfo]
 
     if (authHeader == null) {
         call.respondText("No token", status = HttpStatusCode.Unauthorized)
@@ -21,8 +21,10 @@ suspend fun RoutingContext.validateAccount(backend: ServerBackend): EntityInfo? 
     val accountInfo = backend.dbManager.getEntityByToken(authHeader)
     if (accountInfo == null) {
         call.respondText("Invalid token", status = HttpStatusCode.Forbidden)
-        Logger.warning("User [${call.request.origin.remoteAddress}] tried accessing a restricted route with an invalid token")
-        Logger.info("Users connecting with invalid tokens might be connected to a different server on the same IP and port, it is recommended you run your servers on different ports")
+        Logger.warning("User [${call.request.origin.remoteAddress}] tried accessing " +
+                "a restricted route with an invalid token")
+        Logger.info("Users connecting with invalid tokens might be connected to a " +
+                "different server on the same IP and port, it is recommended you run your servers on different ports")
         return null
     }
 

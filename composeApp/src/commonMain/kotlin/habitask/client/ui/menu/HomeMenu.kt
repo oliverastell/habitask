@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -44,7 +45,7 @@ private suspend fun getFullAssignmentMeta(clientController: ClientController, co
 private fun UpcomingTasksList(clientController: ClientController) {
     val tasks = remember { mutableStateListOf<AssignmentMeta>() }
 
-    runBlocking {
+    LaunchedEffect(Unit) {
         val connections = clientController.fm.getConnections()
         tasks.clear()
 
@@ -52,6 +53,11 @@ private fun UpcomingTasksList(clientController: ClientController) {
             clientController.updateConnection(connection)
             if (clientController.isServerOffline(connection)) {
                 Logger.debug("server offline")
+                continue
+            }
+
+            if (!clientController.isAuthenticated(connection)) {
+                Logger.debug("not authenticated")
                 continue
             }
 
@@ -84,6 +90,7 @@ private fun UpcomingTasksList(clientController: ClientController) {
                             if (success) show = false
                         }
                     },
+                    outsourced = assignmentMeta.assignmentInfo.entityId == null,
                     onOutsource = {
                         runBlocking {
                             val success = clientController.outsourceAssignment(
@@ -103,63 +110,6 @@ private fun UpcomingTasksList(clientController: ClientController) {
 
 @Composable
 private fun ServerTasksList(clientController: ClientController) {}
-
-//@OptIn(ExperimentalTime::class)
-//@Composable
-//private fun ServerTasksList(clientController: ClientController) {
-//    val tasks = remember { mutableStateMapOf<ServerInfo, List<AssignmentMeta>>() }
-//
-//    runBlocking {
-//        val connections = clientController.fm.getConnections()
-//
-//        tasks.clear()
-//
-//        for (connection in connections) {
-//            clientController.updateConnection(connection)
-//            if (clientController.isServerOffline(connection)) {
-//                Logger.debug("server offline")
-//                continue
-//            }
-//
-//            val serverInfo = clientController.getServerInfo(connection)
-//            tasks[serverInfo] = getFullAssignmentMeta(clientController, connection)
-//        }
-//    }
-//
-//    LazyColumn(
-//        reverseLayout = true
-//    ) {
-//        for ((serverInfo, tasks) in tasks) {
-//            this@LazyColumn.items(tasks) { assignmentMeta ->
-//                TaskCard(
-//                    name = assignmentMeta.taskInfo.name,
-//                    dueTime = assignmentMeta.assignmentInfo.dueTime,
-//                    description = assignmentMeta.taskInfo.description,
-//                    onComplete = {
-//                        runBlocking {
-//                            clientController.completeAssignment(
-//                                assignmentMeta.connection,
-//                                assignmentMeta.assignmentInfo.id
-//                            )
-//                        }
-//                    },
-//                    onOutsource = {
-//                        runBlocking {
-//                            clientController.outsourceAssignment(
-//                                assignmentMeta.connection,
-//                                assignmentMeta.assignmentInfo.id
-//                            )
-//                        }
-//                    }
-//                )
-//            }
-//            item {
-//                Text(serverInfo.name)
-//            }
-//        }
-//    }
-//}
-
 
 enum class GroupBy {
     Server,

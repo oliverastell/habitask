@@ -1,4 +1,4 @@
-package habitask.server.ui.serverapp
+package habitask.server.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -89,8 +89,6 @@ fun Sidebar(
             }
 
             Spacer(Modifier.height(32.dp))
-
-            Spacer(modifier = Modifier.weight(1f))
 
             content()
         }

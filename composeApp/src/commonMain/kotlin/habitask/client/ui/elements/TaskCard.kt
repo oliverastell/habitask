@@ -29,14 +29,22 @@ import habitask.common.Logger
 import habitask.common.util.formatTimeRelative
 import habitask.client.ui.util.UpdatingEffect
 import habitask.common.ui.Section
+import habitask.common.util.formatTime
 import habitask.resources.Res
 import habitask.resources.check
 import habitask.resources.menu
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.DateTimeFormat
+import kotlinx.datetime.format.DateTimeFormatBuilder
+import kotlinx.datetime.offsetAt
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+
 
 @OptIn(ExperimentalTime::class)
 @Composable
@@ -44,6 +52,7 @@ fun TaskCard(
     name: String,
     dueTime: Instant,
     description: String,
+    outsourced: Boolean,
     onComplete: () -> Unit,
     onOutsource: () -> Unit,
     modifier: Modifier = Modifier
@@ -60,8 +69,22 @@ fun TaskCard(
             Column(
                 modifier = Modifier.align(Alignment.CenterVertically).weight(1f)
             ) {
-                Text(name)
-                Text(formatTimeRelative(now, dueTime, futurePrefix = "due within ", pastPrefix = "due "))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(name)
+                    if (outsourced) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Outsourced",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }}
+                Text(
+                    if (!expanded)
+                        formatTimeRelative(now, dueTime, futurePrefix = "due in ", pastPrefix = "due ")
+                    else
+                        "due ${formatTime(now, dueTime)}"
+                )
 
                 AnimatedVisibility(expanded) {
                     Column {
@@ -72,11 +95,13 @@ fun TaskCard(
                             Text(description)
                         }
 
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                            TextButton(onClick = onOutsource) {
-                                Text("I can't complete this task!")
+                        // Outsource Task
+                        if (!outsourced)
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                TextButton(onClick = onOutsource) {
+                                    Text("I can't complete this task!")
+                                }
                             }
-                        }
                     }
                 }
             }

@@ -23,6 +23,7 @@ import habitask.server.data.h2.tables.toServerConfigs
 import habitask.server.data.h2.tables.toTaskInfo
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.io.bytestring.buildByteString
+import org.jetbrains.exposed.sql.Expression
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -82,36 +83,28 @@ class DatabaseManager(val fileManager: ServerFileManager) {
     fun getEntitiesByName(
         name: String,
         ignoreCase: Boolean = true,
-        ignoreWhitespace: Boolean = true,
-        limit: Int? = null
+        ignoreWhitespace: Boolean = true
     ): List<EntityInfo> =
         trans {
             EntityTable
                 .selectAll()
-                .apply {
-                    where {
-                        EntityTable.name.apply {
-                            if (ignoreCase)
-                                lowerCase()
-                        }.apply {
-                            if (ignoreWhitespace)
-                                replace(" ", "")
-                                    .replace("\t", "")
-                                    .replace("\n", "")
-                                    .replace("\r", "")
-                        } like name.apply {
-                            if (ignoreCase)
-                                lowercase()
-                        }.apply {
-                            if (ignoreWhitespace)
-                                replace(" ", "")
-                                    .replace("\t", "")
-                                    .replace("\n", "")
-                                    .replace("\r", "")
-                        }
+                .where {
+                    var column: Expression<String> = EntityTable.name
+                    var searchName = name
+
+                    if (ignoreCase) {
+                        column = column.lowerCase()
+                        searchName = name.lowercase()
                     }
-                    if (limit != null)
-                        limit(limit)
+
+                    if (ignoreWhitespace) {
+                        column = column
+                            .replace(Regex("\\s+"), "")
+                        searchName = searchName
+                            .replace(Regex("\\s+"), "")
+                    }
+
+                    column like searchName
                 }
                 .map { it.toEntityInfo() }
         }
@@ -163,14 +156,6 @@ class DatabaseManager(val fileManager: ServerFileManager) {
                 .firstOrNull()
         }?.toAssignmentInfo()
 
-    fun getAssignmentsByEntityId(id: Int): List<AssignmentInfo> =
-        trans {
-            (TaskTable leftJoin AssignmentTable)
-                .selectAll()
-                .where(AssignmentTable.entityId eq id)
-                .map { it.toAssignmentInfo() }
-        }
-
     fun getServerConfigs(): ServerConfigs =
         trans {
             ServerConfigTable.selectAll().first()
@@ -198,6 +183,8 @@ class DatabaseManager(val fileManager: ServerFileManager) {
                 statement[AssignmentTable.entityId] = entityId
             }
         }
+
+        assignmentTableChanged++
     }
 
     fun setServerConfigs(serverConfigs: ServerConfigs) {
@@ -272,14 +259,16 @@ class DatabaseManager(val fileManager: ServerFileManager) {
     @OptIn(ExperimentalTime::class)
     fun newAssignment(
         taskId: Int,
-        entityId: Int,
-        dueTime: Instant
+        entityId: Int?,
+        dueTime: Instant,
+        cycleTime: Instant
     ): AssignmentInfo {
         val id = trans {
             AssignmentTable.insertAndGetId {
                 it[AssignmentTable.taskId] = taskId
                 it[AssignmentTable.entityId] = entityId
                 it[AssignmentTable.dueTime] = dueTime
+                it[AssignmentTable.cycleTime] = cycleTime
             }
         }
 
@@ -289,7 +278,8 @@ class DatabaseManager(val fileManager: ServerFileManager) {
             id = id.value,
             taskId = taskId,
             entityId = entityId,
-            dueTime = dueTime
+            dueTime = dueTime,
+            cycleTime = cycleTime
         )
     }
 

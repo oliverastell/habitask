@@ -10,5 +10,6 @@ data class AssignmentInfo(
     val id: Int,
     val taskId: Int,
     val entityId: Int?,
-    val dueTime: Instant
+    val dueTime: Instant,
+    val cycleTime: Instant
 )

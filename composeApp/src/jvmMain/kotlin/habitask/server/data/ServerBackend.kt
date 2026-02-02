@@ -10,11 +10,10 @@ import habitask.common.data.info.AssignmentInfo
 import habitask.server.data.commandengine.Command
 import habitask.server.data.commandengine.CommandContext
 import habitask.server.data.commandengine.parseCommand
-import habitask.server.data.commands.funCommands
-import habitask.server.data.commands.entityCommand
+import habitask.server.data.commands.miscCommands
 import habitask.server.data.commands.helpCommand
+import habitask.server.data.commands.entityCommands
 import habitask.server.data.commands.metaCommands
-import habitask.server.data.commands.moveCommand
 import habitask.server.data.commands.serverCommands
 import habitask.server.data.commands.taskCommand
 import habitask.server.data.h2.DatabaseManager
@@ -23,6 +22,7 @@ import habitask.server.data.routes.assignment.completeAssignment
 import habitask.server.data.routes.assignment.outsourceAssignment
 import habitask.server.data.routes.entity.entityTasksAssigned
 import habitask.server.data.routes.entity.deleteEntity
+import habitask.server.data.routes.entity.isAuthenticated
 import habitask.server.data.routes.task.taskInfo
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -36,7 +36,6 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -62,14 +61,13 @@ class ServerBackend(
     lateinit var server: EmbeddedServer<*, *>
     lateinit var checkCycleCoroutine: Job
 
-    val commands = mutableListOf<CommandContext.(ServerBackend) -> Unit>(
-        CommandContext::entityCommand,
-        CommandContext::moveCommand,
+    val commandDefinitions = mutableListOf<CommandContext.(ServerBackend) -> Unit>(
+        CommandContext::helpCommand,
+        CommandContext::entityCommands,
         CommandContext::taskCommand,
-        CommandContext::funCommands,
+        CommandContext::miscCommands,
         CommandContext::metaCommands,
         CommandContext::serverCommands,
-        CommandContext::helpCommand
     )
 
     private var inputRequest: ((String) -> Unit)? = null
@@ -84,8 +82,8 @@ class ServerBackend(
 
     fun executeCommand(command: Command, onOutput: (Any) -> Unit) {
         command.execute(onOutput) {
-            for (command in commands) {
-                command(this@ServerBackend)
+            for (commandDefinition in commandDefinitions) {
+                commandDefinition(this@ServerBackend)
             }
         }
     }
@@ -218,12 +216,17 @@ class ServerBackend(
 
     @OptIn(ExperimentalTime::class)
     fun reassignTasks() {
+        Logger.info("All tasks have been reassigned")
+
         dbManager.deleteAllAssignments()
 
         val groups = dbManager.getEntitiesWithParent(null)
         val tasks = dbManager.getTasks()
 
         val shuffledTasks = tasks.shuffled()
+
+        val now = Clock.System.now()
+        val timeZone = TimeZone.currentSystemDefault()
 
         for ((i, task) in shuffledTasks.withIndex()) {
             val groupIdx = groups.size * i / tasks.size
@@ -232,7 +235,8 @@ class ServerBackend(
             dbManager.newAssignment(
                 task.id,
                 group.id,
-                Clock.System.now().plus(1, task.cycleEvery, TimeZone.currentSystemDefault())
+                now.plus(1, task.dueAfter, timeZone),
+                now.plus(1, task.cycleEvery, timeZone)
             )
         }
     }
@@ -285,19 +289,48 @@ class ServerBackend(
         return account
     }
 
-    fun checkCycle() {
+    fun autoReassignTasks() {
         val now = Clock.System.now()
+        val timeZone = TimeZone.currentSystemDefault()
 
-        var configs = dbManager.getServerConfigs()
-
+        val configs = dbManager.getServerConfigs()
         val nextReassignment = configs.nextReassignment
 
         if (now > nextReassignment) {
             reassignTasks()
-            configs = dbManager.getServerConfigs().copy(nextReassignment = now.plus(1, configs.reassignEvery, TimeZone.currentSystemDefault()))
+
+            val updatedConfigs = configs.copy(
+                nextReassignment = configs.nextReassignment.plus(1, configs.reassignEvery, timeZone)
+            )
+
+            dbManager.setServerConfigs(updatedConfigs)
         }
-        
-        dbManager.setServerConfigs(configs)
+    }
+
+    fun autoCycleTasks() {
+        val now = Clock.System.now()
+        val timeZone = TimeZone.currentSystemDefault()
+
+        for (entity in dbManager.getEntities()) {
+            for (assignment in dbManager.getAssignmentsByEntityId(entity.id)) {
+                val task = dbManager.getTaskById(assignment.taskId)!!
+
+                if (now > assignment.cycleTime) {
+                    dbManager.deleteAssignment(assignment.id)
+                    dbManager.newAssignment(
+                        assignment.id,
+                        assignment.entityId,
+                        assignment.dueTime.plus(1, task.dueAfter, timeZone),
+                        assignment.cycleTime.plus(1, task.cycleEvery, timeZone)
+                    )
+                }
+            }
+        }
+    }
+
+    fun checkCycle() {
+        autoReassignTasks()
+        autoCycleTasks()
 
         Logger.info("Check cycle")
     }
@@ -318,6 +351,7 @@ class ServerBackend(
                 registerEntity(this@ServerBackend)
                 deleteEntity(this@ServerBackend)
                 entityTasksAssigned(this@ServerBackend)
+                isAuthenticated(this@ServerBackend)
             }
 
             route("/task") {

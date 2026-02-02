@@ -40,14 +40,12 @@ class ClientController(
         }
     }
 
-    private fun HttpRequestBuilder.authorize(connection: Connection) {
-        headers[HttpHeaders.Authorization] = connection.token ?: error("Weak connection, no token")
+    private fun HttpRequestBuilder.authenticate(connection: Connection) {
+        headers[HttpHeaders.AuthenticationInfo] = connection.token ?: error("Weak connection, no token")
     }
 
     suspend fun updateConnection(connection: Connection) {
-        if (isServerOffline(connection)) {
-            connection.currentlyUsingBackup = true
-        }
+        connection.currentlyUsingBackup = isServerOffline(connection)
     }
 
     suspend fun isServerOnline(connection: Connection): Boolean {
@@ -60,6 +58,12 @@ class ClientController(
             Logger.warning("$e")
             false
         }
+    }
+
+    suspend fun isAuthenticated(connection: Connection): Boolean {
+        return client.get("${connection.url}/entity/self/isAuthenticated") {
+            authenticate(connection)
+        }.status.isSuccess()
     }
 
     suspend fun isServerOffline(connection: Connection) = !isServerOnline(connection)
@@ -76,15 +80,24 @@ class ClientController(
      * Returns true if successful
       */
     suspend fun forgetAccount(connection: Connection): Boolean {
-        return client.delete("${connection.url}/entity/forget") {
-            authorize(connection)
+        return client.delete("${connection.url}/entity/self/forget") {
+            authenticate(connection)
         }.status.isSuccess()
     }
 
     suspend fun getEntityInfo(connection: Connection): EntityInfo {
         val response = client.get("${connection.url}/entity/self/info") {
             contentType(ContentType.Application.Json)
-            authorize(connection)
+            authenticate(connection)
+        }
+
+        return response.body<EntityInfo>()
+    }
+
+    suspend fun getEntityInfo(connection: Connection, entityId: Int): EntityInfo {
+        val response = client.get("${connection.url}/entity/${entityId}/info") {
+            contentType(ContentType.Application.Json)
+            authenticate(connection)
         }
 
         return response.body<EntityInfo>()
@@ -99,28 +112,28 @@ class ClientController(
     suspend fun getTaskById(connection: Connection, taskId: Int): TaskInfo {
         return client.get("${connection.url}/task/$taskId") {
             contentType(ContentType.Application.Json)
-            authorize(connection)
+            authenticate(connection)
         }.body<TaskInfo>()
     }
 
     suspend fun getAssignments(connection: Connection): List<AssignmentInfo> {
         return client.get("${connection.url}/entity/self/assigned") {
             contentType(ContentType.Application.Json)
-            authorize(connection)
+            authenticate(connection)
         }.body<List<AssignmentInfo>>()
     }
 
     suspend fun outsourceAssignment(connection: Connection, assignmentId: Int): Boolean {
         return client.post("${connection.url}/assignment/$assignmentId/outsource") {
             contentType(ContentType.Application.Json)
-            authorize(connection)
+            authenticate(connection)
         }.status.isSuccess()
     }
 
     suspend fun completeAssignment(connection: Connection, assignmentId: Int): Boolean {
         return client.post("${connection.url}/assignment/$assignmentId/complete") {
             contentType(ContentType.Application.Json)
-            authorize(connection)
+            authenticate(connection)
         }.status.isSuccess()
     }
 }

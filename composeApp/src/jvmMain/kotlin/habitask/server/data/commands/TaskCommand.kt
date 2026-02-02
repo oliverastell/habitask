@@ -8,6 +8,13 @@ import habitask.server.data.commandengine.CommandContext
 fun CommandContext.taskCommand(
     backend: ServerBackend
 ) = word("task") {
+    word("help") {
+        end {
+            output("task commands:")
+            output("  create [name] .. opens the task creation wizard")
+            output("  reassign ....... reassigns every task")
+        }
+    }
 
     word("reassign") {
         end {

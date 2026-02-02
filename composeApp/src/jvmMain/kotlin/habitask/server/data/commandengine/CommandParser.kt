@@ -1,16 +1,11 @@
 package habitask.server.data.commandengine
 
-import androidx.compose.runtime.DontMemoize
-import androidx.compose.runtime.key
+import habitask.common.Logger
 import kotlin.jvm.Throws
 
 data class Token(val string: String, val isWhitespace: Boolean)
 
-//data class Token(val string: String, val padding: String)
-//
-//private fun Token.withPadding(char: Char) = Token(this.string, padding + char)
-//
-private class Context(val source: String) {
+private class CommandLexer(val source: String) {
     var index = 0
     val tokens = mutableListOf<Token>()
 
@@ -29,6 +24,61 @@ private class Context(val source: String) {
             string = string,
             isWhitespace = isWhitespace
         ))
+    }
+
+    fun readString() {
+        val cap = next()
+        val string = StringBuilder()
+
+        while (peek() != cap && peek() != null) {
+            val char = next()
+            if (char == '\\') {
+                string.append(when (val next = next()) {
+                    'n' -> '\n'
+                    't' -> '\t'
+                    'r' -> '\r'
+                    '\\' -> '\\'
+                    '"' -> '"'
+                    else -> next
+                })
+            } else {
+                string.append(char)
+            }
+        }
+
+        next()
+
+        addToken(string.toString(), isWhitespace = false)
+    }
+
+    fun readRawString() {
+        val string = StringBuilder()
+        var previous = next() ?: return
+        string.append(previous)
+
+        while (true) {
+            val peeked = peek() ?: break
+
+            if (!isSimilar(previous, peeked))
+                break
+
+            previous = next()!!
+            string.append(previous)
+        }
+
+        addToken(string.toString(), previous.isWhitespace())
+    }
+
+    fun parseCommand(): Command {
+        while (true) {
+            val peeked = peek() ?: break
+
+            if (peeked == '"' || peeked == '\'')
+                readString()
+            else readRawString()
+        }
+
+        return Command(tokens)
     }
 }
 
@@ -98,23 +148,23 @@ interface CommandContext {
         }
     }
 
-    private fun tokensUntil(until: (Token) -> Boolean, startingIndex: Int = index): Int {
-        val tokens = mutableListOf<Token>()
-        var newIndex = startingIndex
-
-        while (true) {
-            val token = command.tokens[newIndex]
-
-            if (until(token))
-                break
-
-            tokens += token
-
-            newIndex++
-        }
-
-        return newIndex
-    }
+//    private fun tokensUntil(until: (Token) -> Boolean, startingIndex: Int = index): Int {
+//        val tokens = mutableListOf<Token>()
+//        var newIndex = startingIndex
+//
+//        while (true) {
+//            val token = command.tokens[newIndex]
+//
+//            if (until(token))
+//                break
+//
+//            tokens += token
+//
+//            newIndex++
+//        }
+//
+//        return newIndex
+//    }
 
     fun tokensUntil(until: (Token) -> Boolean, body: CommandContext.(List<Token>) -> Unit) {
         val tokens = mutableListOf<Token>()
@@ -132,29 +182,6 @@ interface CommandContext {
         }
 
         getContextOfFirstTokenIgnoreWhitespace(newIndex).body(tokens)
-    }
-
-    fun tokens(keyTokens: String, ignoreCase: Boolean = true, body: CommandContext.() -> Unit) {
-        val checkTokens = parseCommand(keyTokens).tokens
-        var checkIndex = 0
-
-        val matchTokens = command.tokens
-        var matchIndex = index
-
-        while (checkIndex < checkTokens.size) {
-            while (checkTokens[checkIndex].isWhitespace)
-                checkIndex++
-            while (matchTokens[matchIndex].isWhitespace)
-                matchIndex++
-
-            if (checkTokens[checkIndex].string.equals(matchTokens[matchIndex].string, ignoreCase = ignoreCase))
-                return
-
-            matchIndex++
-            checkIndex++
-        }
-
-        CommandContext(this, command, matchIndex).body()
     }
 
     fun token(keytoken: String, ignoreCase: Boolean = true, body: CommandContext.() -> Unit) {
@@ -251,30 +278,7 @@ data class Command(val tokens: List<Token>) {
     }
 }
 
-private fun readString(context: Context) {
-    val cap = context.next()
-    val string = StringBuilder()
 
-    while (!(context.peek()?.equals(cap) ?: true)) {
-        val char = context.next()
-        if (char == '\\') {
-            string.append(when (val next = context.next()) {
-                'n' -> '\n'
-                't' -> '\t'
-                'r' -> '\r'
-                '\\' -> '\\'
-                '"' -> '"'
-                else -> next
-            })
-        } else {
-            string.append(char)
-        }
-    }
-
-    context.next()
-
-    context.addToken(string.toString(), isWhitespace = false)
-}
 
 private fun isSimilar(a: Char, b: Char): Boolean {
     if (a.isWhitespace() && b.isWhitespace())
@@ -289,40 +293,9 @@ private fun isSimilar(a: Char, b: Char): Boolean {
     return a == b
 }
 
-private fun readRawString(context: Context) {
-    val string = StringBuilder()
-    var previous = context.next() ?: return
-    string.append(previous)
 
-    while (true) {
-        val peeked = context.peek() ?: break
-
-        if (!isSimilar(previous, peeked))
-            break
-
-        previous = context.next()!!
-        string.append(previous)
-    }
-
-    context.addToken(string.toString(), previous.isWhitespace())
-}
 
 fun List<Token>.asCommand(): Command =
     Command(this)
 
-fun List<Token>.joinToString(): String =
-    joinToString("") { it.string }
-
-fun parseCommand(source: String): Command {
-    val context = Context(source.trim())
-
-    while (true) {
-        if (context.peek() == '"')
-            readString(context)
-        else if (context.peek() != null)
-            readRawString(context)
-        else break
-    }
-
-    return Command(context.tokens)
-}
+fun parseCommand(source: String): Command = CommandLexer(source.trim()).parseCommand()

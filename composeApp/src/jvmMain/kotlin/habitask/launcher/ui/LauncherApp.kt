@@ -30,7 +30,6 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun LauncherApp(
     onOpenServer: (path: Path) -> Unit = {},
@@ -64,109 +63,4 @@ fun LauncherApp(
             }
         }
     }
-
-    /*Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier.fillMaxSize().padding(16.dp)
-    ) {
-        var showPopup by remember { mutableStateOf(false) }
-
-        val recentServers by remember { mutableStateOf(desktopFileManager.getRecentServers()) }
-
-        Column(
-            Modifier.padding(8.dp)
-        ) {
-            if (showPopup) {
-                var name by remember { mutableStateOf("example") }
-                Text("Server folder name")
-
-                TextField(name, onValueChange = {
-                    name = it
-                })
-
-                val path = Path(desktopFileManager.paths.defaultServerDirectory, name.trim())
-                val pathMeta = SystemFileSystem.metadataOrNull(path)
-
-                val validPath = run {
-                    if (name.trim().isEmpty()) {
-                        Text("Name is empty", color = MaterialTheme.colorScheme.onError)
-                        return@run false
-                    }
-
-                    if (pathMeta != null && pathMeta.isDirectory && SystemFileSystem.list(path).isNotEmpty()) {
-                        Text("Directory is not empty", color = MaterialTheme.colorScheme.onError)
-                    }
-
-                    true
-                }
-
-                Row {
-                    if (validPath)
-                        DefaultMenuButton("Open", modifier = Modifier.weight(0.5f)) {
-                            SystemFileSystem.createDirectories(path)
-                            onOpenServer(path)
-                        }
-                    Spacer(Modifier.width(4.dp))
-                    DefaultMenuButton("Cancel", modifier = Modifier.weight(0.5f)) {
-                        showPopup = false
-                    }
-                }
-            } else {
-                DefaultMenuButton("Open Client", onClick = onOpenClient)
-
-                Spacer(Modifier.height(4.dp))
-
-                DefaultMenuButton("New Server") {
-                    showPopup = true
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                DefaultMenuButton("Open Server Directory", onClick = {
-                    val chooser = JFileChooser()
-                    chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-                    chooser.currentDirectory = File(desktopFileManager.paths.defaultServerDirectory.toString())
-
-                    val dialog = chooser.showOpenDialog(null)
-                    if (dialog == JFileChooser.APPROVE_OPTION) {
-                        onOpenServer(Path(chooser.selectedFile.path))
-                    }
-                })
-
-                Spacer(Modifier.height(4.dp))
-
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxWidth().height(32.dp)
-                ) {
-                    HorizontalDivider(modifier = Modifier.fillMaxWidth())
-                }
-
-                Box(Modifier.fillMaxWidth()) {
-                    LazyColumn {
-                        itemsIndexed(recentServers) { i, v ->
-                            MenuButton(
-                                onClick = {
-                                    onOpenServer(v)
-                                },
-                                contentPadding = PaddingValues(8.dp, 0.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Default.Folder,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(4.dp).fillMaxHeight()
-                                )
-                                Column {
-                                    Text("Server $i", fontSize = 14.sp)
-                                    Text(v.toString(), fontSize = 10.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }*/
 }

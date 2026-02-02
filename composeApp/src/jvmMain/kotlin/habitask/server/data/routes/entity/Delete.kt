@@ -10,7 +10,10 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 
 fun Route.deleteEntity(backend: ServerBackend) = delete("/{entityId}/delete") {
+    // Retrieves the entity specified in the URL
     val entity = entityOrSelf(call.parameters["entityId"]!!, backend) ?: return@delete
+
+    // Authenticates the user and returns a UserInfo object (or null)
     val self = validateAccount(backend) ?: return@delete
 
     if (self.id != entity.id)
@@ -22,3 +25,4 @@ fun Route.deleteEntity(backend: ServerBackend) = delete("/{entityId}/delete") {
 
     call.respondText("Account deleted", status = HttpStatusCode.OK)
 }
+

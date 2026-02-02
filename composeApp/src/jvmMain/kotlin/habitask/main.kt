@@ -16,7 +16,7 @@ import habitask.common.windows.ClientServerWindow
 import habitask.common.windows.MenuWindow
 import habitask.launcher.ui.LauncherApp
 import habitask.server.data.filemanagers.DesktopFileManager
-import habitask.server.ui.serverapp.ServerApp
+import habitask.server.ui.ServerApp
 import kotlinx.io.files.Path
 import javax.swing.UIManager
 

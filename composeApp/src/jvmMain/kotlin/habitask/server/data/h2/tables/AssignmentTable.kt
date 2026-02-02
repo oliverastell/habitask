@@ -9,6 +9,7 @@ object AssignmentTable : IntIdTable("task_assignment") {
     val taskId = reference("task_id", TaskTable.id)
     val entityId = reference("entity_id", EntityTable.id).nullable()
     val dueTime = instant("due_time")
+    val cycleTime = instant("cycle_time")
 }
 
 fun ResultRow.toAssignmentInfo() = AssignmentInfo(
@@ -16,4 +17,5 @@ fun ResultRow.toAssignmentInfo() = AssignmentInfo(
     entityId = get(AssignmentTable.entityId)?.value,
     taskId = get(AssignmentTable.taskId).value,
     dueTime = get(AssignmentTable.dueTime),
+    cycleTime = get(AssignmentTable.cycleTime),
 )

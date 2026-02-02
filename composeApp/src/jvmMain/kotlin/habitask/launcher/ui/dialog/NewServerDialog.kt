@@ -13,7 +13,7 @@ import habitask.common.ui.DialogFrame
 import habitask.common.ui.DialogOption
 
 @Composable
-fun ServerDialog(
+fun NewServerDialog(
     onDismissRequest: () -> Unit,
     onCheckValidity: (folderName: String) -> String?,
     onServerCreated: (folderName: String) -> Unit
