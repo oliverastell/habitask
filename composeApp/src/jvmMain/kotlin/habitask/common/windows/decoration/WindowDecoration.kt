@@ -38,7 +38,7 @@ import java.lang.ref.WeakReference
 import javax.swing.SwingUtilities
 import kotlin.math.roundToInt
 
-
+// Adapted from: https://github.com/numq/compose-desktop-window-decoration?tab=readme-ov-file
 @Composable
 fun ApplicationScope.WindowDecoration(
     title: String = "Untitled",

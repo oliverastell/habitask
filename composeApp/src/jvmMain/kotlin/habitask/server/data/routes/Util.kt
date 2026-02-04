@@ -9,7 +9,7 @@ import io.ktor.server.plugins.origin
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.RoutingContext
 
-suspend fun RoutingContext.validateAccount(backend: ServerBackend): EntityInfo? {
+suspend fun RoutingContext.getAuthenticated(backend: ServerBackend): EntityInfo? {
     val authHeader = call.request.headers[HttpHeaders.AuthenticationInfo]
 
     if (authHeader == null) {
@@ -33,7 +33,7 @@ suspend fun RoutingContext.validateAccount(backend: ServerBackend): EntityInfo? 
 
 suspend fun RoutingContext.entityOrSelf(id: String, backend: ServerBackend): EntityInfo? {
     if (id.lowercase() == "self") {
-        val account = validateAccount(backend) ?: return null
+        val account = getAuthenticated(backend) ?: return null
         return account
     }
 

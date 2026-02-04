@@ -40,6 +40,20 @@ class ClientController(
         }
     }
 
+    suspend fun newEntity(connection: Connection, newAccountRequest: NewEntityRequest): NewEntityResponse {
+        return client.post("${connection.url}/entity/register") {
+            contentType(ContentType.Application.Json)
+            setBody(newAccountRequest)
+        }.body<NewEntityResponse>()
+    }
+
+    /** Returns true if successful. */
+    suspend fun deleteAccount(connection: Connection): Boolean {
+        return client.delete("${connection.url}/entity/self/forget") {
+            authenticate(connection)
+        }.status.isSuccess()
+    }
+
     private fun HttpRequestBuilder.authenticate(connection: Connection) {
         headers[HttpHeaders.AuthenticationInfo] = connection.token ?: error("Weak connection, no token")
     }
@@ -68,22 +82,6 @@ class ClientController(
 
     suspend fun isServerOffline(connection: Connection) = !isServerOnline(connection)
 
-    @OptIn(InternalAPI::class)
-    suspend fun newEntity(connection: Connection, newAccountRequest: NewEntityRequest): NewEntityResponse {
-        return client.post("${connection.url}/entity/register") {
-            contentType(ContentType.Application.Json)
-            setBody(newAccountRequest)
-        }.body<NewEntityResponse>()
-    }
-
-    /**
-     * Returns true if successful
-      */
-    suspend fun forgetAccount(connection: Connection): Boolean {
-        return client.delete("${connection.url}/entity/self/forget") {
-            authenticate(connection)
-        }.status.isSuccess()
-    }
 
     suspend fun getEntityInfo(connection: Connection): EntityInfo {
         val response = client.get("${connection.url}/entity/self/info") {

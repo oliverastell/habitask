@@ -147,13 +147,9 @@ fun ServerApp(workingDirectory: Path) {
             CommandBar(commandSent = { command ->
                 Logger.debug("command $command sent")
 
-                try {
-                    backend.inputToConsole(command, onOutput = {
-                        feedbackConsole.add(it.toString())
-                    })
-                } catch (e: Exception) {
-                    Logger.error(e.message)
-                }
+                backend.inputToConsole(command, onOutput = {
+                    feedbackConsole.add(it.toString())
+                })
             })
         }
     }

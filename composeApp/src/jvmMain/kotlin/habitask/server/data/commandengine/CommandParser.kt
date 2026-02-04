@@ -1,6 +1,5 @@
 package habitask.server.data.commandengine
 
-import habitask.common.Logger
 import kotlin.jvm.Throws
 
 data class Token(val string: String, val isWhitespace: Boolean)
@@ -51,10 +50,10 @@ private class CommandLexer(val source: String) {
         addToken(string.toString(), isWhitespace = false)
     }
 
-    fun readRawString() {
-        val string = StringBuilder()
+    fun readRawToken() {
+        val token = StringBuilder()
         var previous = next() ?: return
-        string.append(previous)
+        token.append(previous)
 
         while (true) {
             val peeked = peek() ?: break
@@ -63,10 +62,10 @@ private class CommandLexer(val source: String) {
                 break
 
             previous = next()!!
-            string.append(previous)
+            token.append(previous)
         }
 
-        addToken(string.toString(), previous.isWhitespace())
+        addToken(token.toString(), previous.isWhitespace())
     }
 
     fun parseCommand(): Command {
@@ -75,7 +74,8 @@ private class CommandLexer(val source: String) {
 
             if (peeked == '"' || peeked == '\'')
                 readString()
-            else readRawString()
+            else
+                readRawToken()
         }
 
         return Command(tokens)
@@ -90,7 +90,7 @@ interface CommandContext {
     val command: Command
     val index: Int
     val output: (Any) -> Unit
-    var globallyHandled: Boolean
+    var hasEndpointBeenMet: Boolean
 
     private fun getContextOfFirstTokenIgnoreWhitespace(startingIndex: Int): CommandContext {
         var newIndex = startingIndex
@@ -106,7 +106,7 @@ interface CommandContext {
     }
 
     fun token(body: CommandContext.(token: String) -> Unit) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         val token = command.tokens.getOrNull(index)
@@ -116,7 +116,7 @@ interface CommandContext {
     }
 
     fun word(body: CommandContext.(word: String) -> Unit) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         tokensUntil({ it.isWhitespace }) { tokens ->
@@ -185,7 +185,7 @@ interface CommandContext {
     }
 
     fun token(keytoken: String, ignoreCase: Boolean = true, body: CommandContext.() -> Unit) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         token { token ->
@@ -195,7 +195,7 @@ interface CommandContext {
     }
 
     fun word(keyword: String, ignoreCase: Boolean = true, body: CommandContext.() -> Unit) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         word { word ->
@@ -205,15 +205,15 @@ interface CommandContext {
     }
 
     fun <T> greedySubCommand(body: (Command) -> T) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
-        globallyHandled = true
+        hasEndpointBeenMet = true
         body(command.tokens.subList(index, command.tokens.size).asCommand())
     }
 
     fun <T> greedyText(body: (String) -> T) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         val text = StringBuilder()
@@ -223,25 +223,25 @@ interface CommandContext {
         }
 
         body(text.toString())
-        globallyHandled = true
+        hasEndpointBeenMet = true
     }
 
     fun noEnd() {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         if (index >= command.tokens.size)
-            throw MalformedCommand()
+            throw MalformedCommandException()
     }
 
     fun end(body: () -> Unit) {
-        if (globallyHandled)
+        if (hasEndpointBeenMet)
             return
 
         if (index < command.tokens.size)
             return
 
-        globallyHandled = true
+        hasEndpointBeenMet = true
         body()
     }
 }
@@ -251,29 +251,29 @@ fun CommandContext(parent: CommandContext, command: Command, index: Int) = objec
     override val index: Int = index
     override val parent: CommandContext = parent
 
-    override var globallyHandled: Boolean
-        get() = this.parent.globallyHandled
-        set(value) { this.parent.globallyHandled = value }
+    override var hasEndpointBeenMet: Boolean
+        get() = this.parent.hasEndpointBeenMet
+        set(value) { this.parent.hasEndpointBeenMet = value }
 
     override val output: (Any) -> Unit
         get() = this.parent.output
 }
 
 data class Command(val tokens: List<Token>) {
-    @Throws(MalformedCommand::class)
+    @Throws(MalformedCommandException::class)
     fun execute(onOutput: (Any) -> Unit, body: CommandContext.() -> Unit) {
         val commandContext = object : CommandContext {
             override val parent: CommandContext? = null
             override val command: Command = this@Command
             override val index: Int = 0
             override val output: (Any) -> Unit = onOutput
-            override var globallyHandled: Boolean = false
+            override var hasEndpointBeenMet: Boolean = false
         }
 
         commandContext.body()
 
-        if (!commandContext.globallyHandled) {
-            throw MalformedCommand()
+        if (!commandContext.hasEndpointBeenMet) {
+            throw MalformedCommandException()
         }
     }
 }
@@ -290,7 +290,7 @@ private fun isSimilar(a: Char, b: Char): Boolean {
     if (a.isLetter() && b.isLetter())
         return true
 
-    return a == b
+    return false
 }
 
 

@@ -38,6 +38,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import kotlin.io.encoding.Base64
+import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -206,14 +207,19 @@ class DatabaseManager(val fileManager: ServerFileManager) {
     fun newAccess(
         accountId: Int
     ): AccessInfo {
+        // this is not secure whatsoever but it works
+
         val epoch = Clock.System.now().epochSeconds
         val nanos = Clock.System.now().nanosecondsOfSecond
 
         val tokenBytes = buildByteString {
-            append(accountId.toByteArray())
-            append(epoch.toByteArray())
+            append((accountId+1000000000).toByteArray())
+            append(Random.nextBytes(2))
+            append((epoch+1000000000).toByteArray())
+            append(Random.nextBytes(2))
             append(entityTableChanged.toByteArray())
-            append(nanos.hashCode().toByteArray())
+            append(Random.nextBytes(2))
+            append((nanos+1000000000).hashCode().toByteArray())
         }
 
         val token = Base64.withPadding(Base64.PaddingOption.ABSENT).encode(tokenBytes.toByteArray())

@@ -9,6 +9,7 @@ import habitask.common.data.info.EntityInfo.EntityType
 import habitask.common.data.info.AssignmentInfo
 import habitask.server.data.commandengine.Command
 import habitask.server.data.commandengine.CommandContext
+import habitask.server.data.commandengine.MalformedCommandException
 import habitask.server.data.commandengine.parseCommand
 import habitask.server.data.commands.miscCommands
 import habitask.server.data.commands.helpCommand
@@ -50,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -81,10 +83,18 @@ class ServerBackend(
     }
 
     fun executeCommand(command: Command, onOutput: (Any) -> Unit) {
-        command.execute(onOutput) {
-            for (commandDefinition in commandDefinitions) {
-                commandDefinition(this@ServerBackend)
+        try {
+            command.execute(onOutput) {
+                for (commandDefinition in commandDefinitions) {
+                    commandDefinition(this@ServerBackend)
+                }
             }
+        } catch (_: MalformedCommandException) {
+            Logger.error("malformed command: $command")
+            onOutput("malformed command, type 'help' for a list of commands")
+        } catch (e: Exception) {
+            Logger.error("error occurred: ${e.message}")
+            onOutput("this command ran into an error, type 'help' for a list of commands")
         }
     }
 
@@ -146,7 +156,7 @@ class ServerBackend(
         
         terminal!
         
-        Type `help` for a list of commands.
+        Type 'help' for a list of commands.
         %
     """.trimIndent().replace("%", "")
 
@@ -220,21 +230,23 @@ class ServerBackend(
 
         dbManager.deleteAllAssignments()
 
-        val groups = dbManager.getEntitiesWithParent(null)
-        val tasks = dbManager.getTasks()
-
-        val shuffledTasks = tasks.shuffled()
-
         val now = Clock.System.now()
         val timeZone = TimeZone.currentSystemDefault()
 
-        for ((i, task) in shuffledTasks.withIndex()) {
-            val groupIdx = groups.size * i / tasks.size
-            val group = groups[groupIdx]
+        // Shuffling groups ensures the order in which people are assigned to is random
+        val groups = dbManager.getEntitiesWithParent(null).shuffled()
+
+        // Shuffling tasks ensures the tasks that are assigned are random
+        val tasks = dbManager.getTasks().shuffled()
+
+        var groupIdx = 0
+        for (task in tasks) {
+            groupIdx++
+            groupIdx %= groups.size
 
             dbManager.newAssignment(
                 task.id,
-                group.id,
+                groups[groupIdx].id,
                 now.plus(1, task.dueAfter, timeZone),
                 now.plus(1, task.cycleEvery, timeZone)
             )
@@ -242,8 +254,6 @@ class ServerBackend(
     }
 
     fun isEntityDescendantOf(entityId: Int, ancestorId: Int?): Boolean {
-        Logger.debug("$entityId descendent of $ancestorId ???")
-
         if (ancestorId == null)
             return true
 
@@ -269,8 +279,6 @@ class ServerBackend(
 
     fun getAssignments(entityId: Int): List<AssignmentInfo>? {
         val parentId = (dbManager.getEntityById(entityId) ?: return null).parent
-
-        Logger.debug("get tasks of : $entityId ,$parentId")
 
         if (parentId == null) {
             return dbManager.getAssignmentsByEntityId(entityId) + dbManager.getAssignmentsByEntityId(null)
@@ -336,7 +344,9 @@ class ServerBackend(
     }
 
     fun Application.module() {
+        // Ktor plugin, allowing serialized data structures to be sent over network
         install(ContentNegotiation) { json() }
+        // Ktor plugin, automatically responds to the client if a server runs into an unhandled exception
         install(StatusPages) {
             exception<Throwable> { call, cause ->
                 Logger.error("500: ${cause.stackTrace.joinToString("\n")}")

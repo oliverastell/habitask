@@ -20,7 +20,7 @@ import habitask.server.ui.ServerApp
 import kotlinx.io.files.Path
 import javax.swing.UIManager
 
-private interface DesktopWindow {
+private sealed interface DesktopWindow {
     object Launcher : DesktopWindow
     object Client : DesktopWindow
     data class Server(val path: Path) : DesktopWindow
