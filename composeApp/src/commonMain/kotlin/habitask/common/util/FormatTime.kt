@@ -103,6 +103,6 @@ fun formatTimeRelative(
         abs < 7.days -> "$prefix${duration.inWholeDays.absoluteValue} days$suffix"
         years > 0 -> "$prefix$years years$suffix"
         months > 0 -> "$prefix$months months$suffix"
-        else -> "$prefix${duration.inWholeDays/7} weeks$suffix"
+        else -> "$prefix${duration.inWholeDays.absoluteValue/7} weeks$suffix"
     }
 }

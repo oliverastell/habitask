@@ -24,7 +24,6 @@ import habitask.server.data.h2.tables.toTaskInfo
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.io.bytestring.buildByteString
 import org.jetbrains.exposed.sql.Expression
-import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Transaction
@@ -122,7 +121,7 @@ class DatabaseManager(val fileManager: ServerFileManager) {
         trans {
             EntityTable
                 .selectAll()
-                .where { EntityTable.parent eq parentId }
+                .where { EntityTable.parent_entity_id eq parentId }
                 .map { it.toEntityInfo() }
         }
 
@@ -171,7 +170,7 @@ class DatabaseManager(val fileManager: ServerFileManager) {
     fun setEntityParent(entityId: Int, parentEntityId: Int?) {
         trans {
             EntityTable.update({ EntityTable.id eq entityId }) { statement ->
-                statement[EntityTable.parent] = parentEntityId
+                statement[EntityTable.parent_entity_id] = parentEntityId
             }
         }
 
@@ -247,7 +246,7 @@ class DatabaseManager(val fileManager: ServerFileManager) {
         val id = trans {
             EntityTable.insertAndGetId {
                 it[EntityTable.name] = name
-                it[EntityTable.parent] = parent
+                it[EntityTable.parent_entity_id] = parent
                 it[EntityTable.entityType] = entityType
             }
         }
@@ -324,8 +323,8 @@ class DatabaseManager(val fileManager: ServerFileManager) {
             AssignmentTable.update({ AssignmentTable.entityId eq id }) { statement ->
                 statement[AssignmentTable.entityId] = null
             }
-            EntityTable.update({ EntityTable.parent eq id }) { statement ->
-                statement[EntityTable.parent] = null
+            EntityTable.update({ EntityTable.parent_entity_id eq id }) { statement ->
+                statement[EntityTable.parent_entity_id] = null
             }
             EntityTable.deleteWhere(1) {
                 EntityTable.id eq id

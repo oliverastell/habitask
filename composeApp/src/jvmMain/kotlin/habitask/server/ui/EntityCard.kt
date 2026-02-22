@@ -51,8 +51,8 @@ fun EntityCard(
 
     val expandable = children.isNotEmpty() || taskAssignments.isNotEmpty()
 
-    var open by remember { mutableStateOf(children.size+taskAssignments.size == 1) }
-
+//    var open by remember { mutableStateOf(children.size+taskAssignments.size == 1) }
+    var open by remember { mutableStateOf(true) }
 
     ContextMenuArea(
         items = {

@@ -46,7 +46,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 
-@OptIn(ExperimentalTime::class)
+
 @Composable
 fun TaskCard(
     name: String,

@@ -63,6 +63,7 @@ class ClientController(
     }
 
     suspend fun isServerOnline(connection: Connection): Boolean {
+        Logger.debug("$connection check")
         return try {
             val response = client.get("${connection.url}/status")
             response.status.isSuccess()

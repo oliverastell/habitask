@@ -233,8 +233,12 @@ class ServerBackend(
         val now = Clock.System.now()
         val timeZone = TimeZone.currentSystemDefault()
 
+
         // Shuffling groups ensures the order in which people are assigned to is random
         val groups = dbManager.getEntitiesWithParent(null).shuffled()
+
+        if (groups.isEmpty())
+            return
 
         // Shuffling tasks ensures the tasks that are assigned are random
         val tasks = dbManager.getTasks().shuffled()
