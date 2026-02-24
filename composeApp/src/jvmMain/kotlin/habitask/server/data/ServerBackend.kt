@@ -330,7 +330,7 @@ class ServerBackend(
                 if (now > assignment.cycleTime) {
                     dbManager.deleteAssignment(assignment.id)
                     dbManager.newAssignment(
-                        assignment.id,
+                        task.id,
                         assignment.entityId,
                         assignment.dueTime.plus(1, task.dueAfter, timeZone),
                         assignment.cycleTime.plus(1, task.cycleEvery, timeZone)

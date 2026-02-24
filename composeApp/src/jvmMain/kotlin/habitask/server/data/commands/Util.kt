@@ -34,9 +34,11 @@ import habitask.server.data.commandengine.parseCommand
 
 fun CommandContext.intRange(body: CommandContext.(IntRange) -> Unit) {
     integer { start ->
-        token("..") {
-            integer { end ->
-                body(start..end)
+        token(".") {
+            token(".") {
+                integer { end ->
+                    body(start..end)
+                }
             }
         }
     }
