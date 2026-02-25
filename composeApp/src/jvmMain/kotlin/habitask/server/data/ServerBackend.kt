@@ -51,7 +51,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import org.jetbrains.exposed.exceptions.ExposedSQLException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -168,11 +167,16 @@ class ServerBackend(
     private fun stopServer() {
         server.stop(1000)
     }
+
     private fun startCheckCycle() {
         checkCycleCoroutine = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 delay(60.seconds)
-                checkCycle()
+                try {
+                    checkCycle()
+                } catch (e: Exception) {
+                    Logger.error("error occured during checkcycle: ${e.message}")
+                }
             }
         }
         checkCycleCoroutine.start()
@@ -226,31 +230,30 @@ class ServerBackend(
 
     @OptIn(ExperimentalTime::class)
     fun reassignTasks() {
-        Logger.info("All tasks have been reassigned")
+        Logger.info("All tasks are being reassigned")
 
         dbManager.deleteAllAssignments()
 
         val now = Clock.System.now()
         val timeZone = TimeZone.currentSystemDefault()
 
-
         // Shuffling groups ensures the order in which people are assigned to is random
-        val groups = dbManager.getEntitiesWithParent(null).shuffled()
+        val rootEntities = dbManager.getEntitiesWithParent(null).shuffled()
 
-        if (groups.isEmpty())
+        if (rootEntities.isEmpty())
             return
 
         // Shuffling tasks ensures the tasks that are assigned are random
         val tasks = dbManager.getTasks().shuffled()
 
-        var groupIdx = 0
+        var entityIdx = 0
         for (task in tasks) {
-            groupIdx++
-            groupIdx %= groups.size
+            entityIdx++
+            entityIdx %= rootEntities.size
 
             dbManager.newAssignment(
                 task.id,
-                groups[groupIdx].id,
+                rootEntities[entityIdx].id,
                 now.plus(1, task.dueAfter, timeZone),
                 now.plus(1, task.cycleEvery, timeZone)
             )
@@ -343,8 +346,6 @@ class ServerBackend(
     fun checkCycle() {
         autoReassignTasks()
         autoCycleTasks()
-
-        Logger.info("Check cycle")
     }
 
     fun Application.module() {
